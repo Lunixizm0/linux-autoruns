@@ -124,6 +124,7 @@ def _try_relaunch() -> bool:
                     os.unlink(wrapper)
                 except OSError:
                     pass
+        return False
 
     password = _prompt_password_qt()
     if not password:

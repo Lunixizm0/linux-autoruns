@@ -51,7 +51,7 @@ def _make_entry(**overrides) -> AutostartEntry:
 class TestTableModelHeaders:
     def test_column_count(self):
         model = EntryTableModel()
-        assert model.columnCount() == 12
+        assert model.columnCount() == 10
 
     def test_headers_are_strings(self):
         for h in EntryTableModel.HEADERS:
@@ -68,7 +68,6 @@ class TestTableModelHeaders:
         assert "Scope" in EntryTableModel.HEADERS
         assert "Perms" in EntryTableModel.HEADERS
         assert "Size" in EntryTableModel.HEADERS
-        assert "Modified" in EntryTableModel.HEADERS
         assert "Owner" in EntryTableModel.HEADERS
 
     def test_header_data(self):
@@ -76,14 +75,14 @@ class TestTableModelHeaders:
         from PySide6.QtCore import Qt
         assert model.headerData(0, Qt.Horizontal) == "+"
         assert model.headerData(1, Qt.Horizontal) == "Name"
-        assert model.headerData(11, Qt.Horizontal) == "Owner"
+        assert model.headerData(9, Qt.Horizontal) == "Owner"
 
 
 class TestTableModelData:
     def test_empty_model(self):
         model = EntryTableModel()
         assert model.rowCount() == 0
-        assert model.columnCount() == 12
+        assert model.columnCount() == 10
 
     def test_add_entry(self):
         model = EntryTableModel()
@@ -139,28 +138,28 @@ class TestTableModelData:
         model = EntryTableModel()
         model.set_entries([_make_entry(file_size=2048)])
         from PySide6.QtCore import Qt
-        val = model.data(model.index(0, 9), Qt.DisplayRole)
+        val = model.data(model.index(0, 8), Qt.DisplayRole)
         assert val == "2.0 KB"
 
-    def test_col9_none_size_returns_empty(self):
+    def test_col8_none_size_returns_empty(self):
         model = EntryTableModel()
         model.set_entries([_make_entry(file_size=None)])
         from PySide6.QtCore import Qt
-        val = model.data(model.index(0, 9), Qt.DisplayRole)
+        val = model.data(model.index(0, 8), Qt.DisplayRole)
         assert val == ""
 
     def test_col5_returns_command(self):
         model = EntryTableModel()
         model.set_entries([_make_entry(command="/usr/bin/foo")])
         from PySide6.QtCore import Qt
-        val = model.data(model.index(0, 5), Qt.DisplayRole)
+        val = model.data(model.index(0, 4), Qt.DisplayRole)
         assert val == "/usr/bin/foo"
 
     def test_col6_returns_path(self):
         model = EntryTableModel()
         model.set_entries([_make_entry(file_path="/some/path")])
         from PySide6.QtCore import Qt
-        val = model.data(model.index(0, 6), Qt.DisplayRole)
+        val = model.data(model.index(0, 5), Qt.DisplayRole)
         assert val == "/some/path"
 
     def test_col5_truncates_long_command(self):
@@ -168,7 +167,7 @@ class TestTableModelData:
         long_cmd = "/usr/bin/very-long-command --arg1 foo --arg2 bar --arg3 baz"
         model.set_entries([_make_entry(command=long_cmd)])
         from PySide6.QtCore import Qt
-        val = model.data(model.index(0, 5), Qt.DisplayRole)
+        val = model.data(model.index(0, 4), Qt.DisplayRole)
         assert val.endswith("...")
         assert len(val) == 50
 
@@ -177,7 +176,7 @@ class TestTableModelData:
         long_path = "/some/very/long/path/to/a/file/that/definitely/exceeds/limit"
         model.set_entries([_make_entry(file_path=long_path)])
         from PySide6.QtCore import Qt
-        val = model.data(model.index(0, 6), Qt.DisplayRole)
+        val = model.data(model.index(0, 5), Qt.DisplayRole)
         assert val.endswith("...")
         assert len(val) == 50
 
@@ -185,15 +184,15 @@ class TestTableModelData:
         model = EntryTableModel()
         model.set_entries([_make_entry(command="/usr/bin/short")])
         from PySide6.QtCore import Qt
-        val = model.data(model.index(0, 5), Qt.DisplayRole)
+        val = model.data(model.index(0, 4), Qt.DisplayRole)
         assert val == "/usr/bin/short"
         assert "..." not in val
 
-    def test_col11_returns_owner(self):
+    def test_col9_returns_owner(self):
         model = EntryTableModel()
         model.set_entries([_make_entry(owner="nobody")])
         from PySide6.QtCore import Qt
-        val = model.data(model.index(0, 11), Qt.DisplayRole)
+        val = model.data(model.index(0, 9), Qt.DisplayRole)
         assert val == "nobody"
 
     def test_user_role_returns_entry_object(self):
@@ -261,7 +260,7 @@ class TestTableModelColors:
         model = EntryTableModel()
         model.set_entries([_make_entry(command="/usr/bin/test", exec_args=["--flag"])])
         from PySide6.QtCore import Qt
-        tip = model.data(model.index(0, 5), Qt.ToolTipRole)
+        tip = model.data(model.index(0, 4), Qt.ToolTipRole)
         assert "Command: /usr/bin/test" in tip
         assert "Args: --flag" in tip
 
@@ -269,7 +268,7 @@ class TestTableModelColors:
         model = EntryTableModel()
         model.set_entries([_make_entry(file_path="/some/file")])
         from PySide6.QtCore import Qt
-        tip = model.data(model.index(0, 6), Qt.ToolTipRole)
+        tip = model.data(model.index(0, 5), Qt.ToolTipRole)
         assert "Path: /some/file" in tip
 
     def test_tooltip_none_for_other_cols(self):
@@ -297,7 +296,7 @@ class TestTableModelColors:
         model = EntryTableModel()
         model.set_entries([_make_entry()])
         from PySide6.QtCore import Qt
-        align = model.data(model.index(0, 9), Qt.TextAlignmentRole)
+        align = model.data(model.index(0, 8), Qt.TextAlignmentRole)
         assert align == int(Qt.AlignRight | Qt.AlignVCenter)
 
 

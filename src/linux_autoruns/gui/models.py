@@ -28,20 +28,18 @@ def _format_size(size_bytes: int | None) -> str:
 
 class EntryTableModel(QAbstractTableModel):
     HEADERS = [
-        "+", "Name", "Category", "User", "Description",
-        "Command", "Path", "Scope", "Perms", "Size", "Modified", "Owner",
+        "+", "Name", "Category", "Description",
+        "Command", "Path", "Scope", "Perms", "Size", "Owner",
     ]
     _FIELD_MAP = {
         1: "name",
         2: "category",
-        3: "user",
-        4: "description",
-        5: "command",
-        6: "file_path",
-        7: "scope",
-        8: "file_permissions",
-        10: "last_modified",
-        11: "owner",
+        3: "description",
+        4: "command",
+        5: "file_path",
+        6: "scope",
+        7: "file_permissions",
+        9: "owner",
     }
 
     def __init__(self, parent=None):
@@ -63,14 +61,14 @@ class EntryTableModel(QAbstractTableModel):
         if role == Qt.DisplayRole:
             if col == 0:
                 return "+" if entry.enabled else "-"
-            if col == 9:
+            if col == 8:
                 return _format_size(entry.file_size)
             field = self._FIELD_MAP.get(col)
             if field:
                 val = getattr(entry, field, None)
                 if val is not None:
                     s = str(val)
-                    if col in (5, 6) and len(s) > 50:
+                    if col in (4, 5) and len(s) > 50:
                         return s[:47] + "..."
                     return s
                 return ""
@@ -79,7 +77,7 @@ class EntryTableModel(QAbstractTableModel):
         if role == Qt.TextAlignmentRole:
             if col == 0:
                 return int(Qt.AlignCenter)
-            if col in (9,):
+            if col == 8:
                 return int(Qt.AlignRight | Qt.AlignVCenter)
             return int(Qt.AlignLeft | Qt.AlignVCenter)
 
@@ -98,13 +96,13 @@ class EntryTableModel(QAbstractTableModel):
             return None
 
         if role == Qt.ToolTipRole:
-            if col in (5, 6):
+            if col in (4, 5):
                 parts = []
                 if entry.command:
                     parts.append(f"Command: {entry.command}")
                 if entry.exec_args:
                     parts.append(f"Args: {' '.join(entry.exec_args)}")
-                if col == 6:
+                if col == 5:
                     parts.append(f"Path: {entry.file_path}")
                 return "\n".join(parts) if parts else None
             return None

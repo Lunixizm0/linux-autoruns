@@ -114,8 +114,8 @@ class MainWindow(QMainWindow):
 
     def _configure_table_columns(self):
         header = self._table.horizontalHeader()
-        stretch_cols = {1, 4, 6}
-        content_cols = {0, 2, 3, 7, 8, 9, 10, 11}
+        stretch_cols = {1, 3, 5}
+        content_cols = {0, 2, 4, 6, 7, 8, 9}
         for col in range(header.count()):
             if col in stretch_cols:
                 header.setSectionResizeMode(col, QHeaderView.Stretch)
@@ -308,12 +308,10 @@ class MainWindow(QMainWindow):
         if self._error_count:
             msg += f" ({self._error_count} errors)"
         self._status_bar.showMessage(msg)
-        has_user = any(e.user for e in entries)
-        self._table.setColumnHidden(3, not has_user)
         scopes = {e.scope for e in entries}
-        self._table.setColumnHidden(7, len(scopes) <= 1)
+        self._table.setColumnHidden(6, len(scopes) <= 1)
         owners = {e.owner for e in entries if e.owner}
-        self._table.setColumnHidden(11, len(owners) <= 1)
+        self._table.setColumnHidden(9, len(owners) <= 1)
 
     def _on_error(self, msg: str):
         self._error_count += 1
@@ -384,8 +382,6 @@ class MainWindow(QMainWindow):
         tag = self._tag_combo.currentText()
         self._proxy.set_tag_filter(None if tag == "All" else tag)
         self._proxy.set_search_text(self._search.text())
-        has_user = any(e.user for e in self._all_entries)
-        self._table.setColumnHidden(3, not has_user)
         self._update_result_count()
 
     def _on_search(self, text: str):
@@ -534,9 +530,9 @@ class MainWindow(QMainWindow):
         try:
             with open(path, "w", encoding="utf-8", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerow(["Enabled", "Name", "Category", "User", "Description",
-                                 "Command", "Path", "Scope", "Permissions", "Size",
-                                 "Modified", "Owner", "Tags"])
+                writer.writerow(["Enabled", "Name", "Category", "Description",
+                                 "Command", "Path", "Scope", "Permissions",
+                                 "Size", "Owner", "Tags"])
                 for entry in self._all_entries:
                     size_str = ""
                     if entry.file_size is not None:
@@ -550,14 +546,12 @@ class MainWindow(QMainWindow):
                         "+" if entry.enabled else "-",
                         entry.name,
                         entry.category,
-                        entry.user or "",
                         entry.description or "",
                         entry.command or "",
                         entry.file_path,
                         entry.scope,
                         entry.file_permissions or "",
                         size_str,
-                        entry.last_modified or "",
                         entry.owner or "",
                         ",".join(entry.tags),
                     ])
