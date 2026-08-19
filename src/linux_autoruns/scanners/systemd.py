@@ -19,6 +19,7 @@ class SystemdScanner(BaseScanner):
         os.path.expanduser("~/.config/systemd/user"),
         "/etc/systemd/user",
     ]
+    BOOT_TARGETS = {"multi-user.target", "graphical.target", "basic.target", "default.target"}
 
     @property
     def name(self) -> str:
@@ -30,10 +31,11 @@ class SystemdScanner(BaseScanner):
 
     def scan(self) -> list[AutostartEntry]:
         entries: list[AutostartEntry] = []
+        seen_paths: set[str] = set()
         for d in self.SERVICE_DIRS:
-            entries.extend(self._scan_dir(d, "system"))
+            entries.extend(self._scan_dir(d, "system", seen_paths))
         for d in self.USER_DIRS:
-            entries.extend(self._scan_dir(d, "user"))
+            entries.extend(self._scan_dir(d, "user", seen_paths))
         for entry in entries:
             if entry.file_path:
                 symlink = os.path.realpath(entry.file_path)
@@ -41,25 +43,32 @@ class SystemdScanner(BaseScanner):
                     entry.details["real_path"] = symlink
         return entries
 
-    def _scan_dir(self, dirpath: str, scope: str) -> list[AutostartEntry]:
+    def _scan_dir(self, dirpath: str, scope: str, seen_paths: set[str]) -> list[AutostartEntry]:
         entries: list[AutostartEntry] = []
         if not self._safe_exists(dirpath):
             return entries
         for f in sorted(Path(dirpath).iterdir()):
             if f.is_symlink() and not f.exists():
                 continue
+            real_path = str(f.resolve()) if f.is_symlink() else str(f)
+            if real_path in seen_paths:
+                continue
             if f.suffix in (".service", ".timer"):
                 entry = self._parse_unit(str(f), scope)
                 if entry:
+                    seen_paths.add(real_path)
                     entries.append(entry)
             wants_dir = f / "wants"
             if wants_dir.is_dir():
                 for link in sorted(wants_dir.iterdir()):
                     if link.is_symlink():
                         target = os.path.realpath(str(link))
+                        if target in seen_paths:
+                            continue
                         if self._safe_exists(target):
                             entry = self._parse_unit(target, scope)
                             if entry:
+                                seen_paths.add(target)
                                 entry.enabled = True
                                 entry.details["wanted_by_dir"] = str(wants_dir)
                                 entries.append(entry)

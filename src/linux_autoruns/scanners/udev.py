@@ -56,8 +56,8 @@ class UdevScanner(BaseScanner):
                 elif part.startswith("SUBSYSTEM=="):
                     val = part.split("==")[1].strip('"')
                     subsystems.add(val)
-                elif part.startswith("RUN+=" or part.startswith("RUN==")):
-                    val = part.split("+")[1].strip('"') if "+" in part else part.split("==")[1].strip('"')
+                elif part.startswith("RUN+=") or part.startswith("RUN=="):
+                    val = part.split("+", 1)[1].strip('"') if "+" in part else part.split("==", 1)[1].strip('"')
                     run_commands.append(val)
         enabled = len(rules) > 0
         details: dict[str, str | int | bool | list[str]] = {

@@ -39,11 +39,16 @@ class CronScanner(BaseScanner):
                                     break
                         if not description:
                             description = f"Runs {period}"
+                        command = None
+                        if content:
+                            lines = content.splitlines()
+                            if lines and lines[0].startswith("#!"):
+                                command = lines[0]
                         entries.append(self._make_entry(
                             file_path=str(f),
                             name=f.name,
                             enabled=True,
-                            command=content.splitlines()[0] if content and content.startswith("#!") else str(f),
+                            command=command or str(f),
                             scope="system",
                             description=description,
                             last_modified=self._get_mtime_iso(str(f)),

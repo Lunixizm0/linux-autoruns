@@ -25,6 +25,10 @@ class DesktopEnvScanner(BaseScanner):
         entries.extend(self._scan_kde())
         entries.extend(self._scan_xfce())
         entries.extend(self._scan_wayland())
+        entries.extend(self._scan_cinnamon())
+        entries.extend(self._scan_mate())
+        entries.extend(self._scan_lxqt())
+        entries.extend(self._scan_cosmic())
         return entries
 
     def _scan_gnome(self) -> list[AutostartEntry]:
@@ -216,5 +220,103 @@ class DesktopEnvScanner(BaseScanner):
                         owner=info["owner"],
                         tags=["wayland", "nwg"],
                         details={"de": "nwg-shell"},
+                    ))
+        return entries
+
+    def _scan_cinnamon(self) -> list[AutostartEntry]:
+        entries: list[AutostartEntry] = []
+        autostart_dir = os.path.expanduser("~/.config/autostart")
+        if self._safe_exists(autostart_dir):
+            for f in sorted(Path(autostart_dir).glob("*.desktop")):
+                content = self._read_file(str(f))
+                if not content:
+                    continue
+                if "Cinnamon" in content and "OnlyShowIn" in content:
+                    info = self._get_file_info(str(f))
+                    entries.append(self._make_entry(
+                        file_path=str(f),
+                        name=f.stem,
+                        enabled=True,
+                        user=self._current_user,
+                        scope="user",
+                        description="Cinnamon autostart",
+                        last_modified=self._get_mtime_iso(str(f)),
+                        file_size=info["size"],
+                        file_permissions=info["permissions"],
+                        owner=info["owner"],
+                        tags=["cinnamon", "autostart"],
+                        details={"de": "cinnamon"},
+                    ))
+        return entries
+
+    def _scan_mate(self) -> list[AutostartEntry]:
+        entries: list[AutostartEntry] = []
+        autostart_dir = os.path.expanduser("~/.config/autostart")
+        if self._safe_exists(autostart_dir):
+            for f in sorted(Path(autostart_dir).glob("*.desktop")):
+                content = self._read_file(str(f))
+                if not content:
+                    continue
+                if "MATE" in content and "OnlyShowIn" in content:
+                    info = self._get_file_info(str(f))
+                    entries.append(self._make_entry(
+                        file_path=str(f),
+                        name=f.stem,
+                        enabled=True,
+                        user=self._current_user,
+                        scope="user",
+                        description="MATE autostart",
+                        last_modified=self._get_mtime_iso(str(f)),
+                        file_size=info["size"],
+                        file_permissions=info["permissions"],
+                        owner=info["owner"],
+                        tags=["mate", "autostart"],
+                        details={"de": "mate"},
+                    ))
+        return entries
+
+    def _scan_lxqt(self) -> list[AutostartEntry]:
+        entries: list[AutostartEntry] = []
+        lxqt_dir = os.path.expanduser("~/.config/lxqt/autostart")
+        if self._safe_exists(lxqt_dir):
+            for f in sorted(Path(lxqt_dir).iterdir()):
+                if f.is_file():
+                    info = self._get_file_info(str(f))
+                    entries.append(self._make_entry(
+                        file_path=str(f),
+                        name=f.name,
+                        enabled=True,
+                        user=self._current_user,
+                        scope="user",
+                        description="LXQt autostart",
+                        last_modified=self._get_mtime_iso(str(f)),
+                        file_size=info["size"],
+                        file_permissions=info["permissions"],
+                        owner=info["owner"],
+                        tags=["lxqt", "autostart"],
+                        details={"de": "lxqt"},
+                    ))
+        return entries
+
+    def _scan_cosmic(self) -> list[AutostartEntry]:
+        entries: list[AutostartEntry] = []
+        cosmic_dir = os.path.expanduser("~/.config/cosmic")
+        if self._safe_exists(cosmic_dir):
+            for f in sorted(Path(cosmic_dir).rglob("*")):
+                if f.is_file() and f.suffix in (".toml", ".ron"):
+                    info = self._get_file_info(str(f))
+                    entries.append(self._make_entry(
+                        file_path=str(f),
+                        name=f.name,
+                        enabled=True,
+                        user=self._current_user,
+                        scope="user",
+                        description="COSMIC DE config",
+                        last_modified=self._get_mtime_iso(str(f)),
+                        file_size=info["size"],
+                        file_permissions=info["permissions"],
+                        owner=info["owner"],
+                        tags=["cosmic", "autostart"],
+                        details={"de": "cosmic"},
                     ))
         return entries
