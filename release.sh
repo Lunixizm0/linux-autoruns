@@ -30,3 +30,30 @@ echo ""
 echo "${TAG} yayınlandı! GitHub Actions PyPI'ya yüklüyor."
 echo "https://github.com/Lunixizm0/linux-autoruns/actions"
 echo "https://pypi.org/project/linux-autoruns/${VERSION}/"
+
+echo ""
+echo "PyPI üzerinde ${VERSION} versiyonu bekleniyor..."
+
+PYPI_URL="https://pypi.org/pypi/linux-autoruns/${VERSION}/json"
+MAX_ATTEMPTS=15
+SLEEP_SECONDS=3
+
+for ((i=1; i<=MAX_ATTEMPTS; i++)); do
+    HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$PYPI_URL")
+
+    if [[ "$HTTP_STATUS" == "200" ]]; then
+        echo "+ ${VERSION} PyPI'da mevcut"
+        echo "https://pypi.org/project/linux-autoruns/${VERSION}/"
+        exit 0
+    fi
+
+    echo " Henüz mevcut değil (HTTP ${HTTP_STATUS}). ${SLEEP_SECONDS}s bekleniyor... [$i/$MAX_ATTEMPTS]"
+    sleep "$SLEEP_SECONDS"
+done
+
+echo ""
+echo "${VERSION} ${MAX_ATTEMPTS} denemeden sonra PyPI'da bulunamadı."
+echo "GitHub Actions'ı kontrol et:"
+echo "https://github.com/Lunixizm0/linux-autoruns/actions"
+
+exit 1
