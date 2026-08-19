@@ -49,7 +49,6 @@ def _try_relaunch() -> bool:
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Linux Autoruns")
-    app.setApplicationVersion("0.1.0")
     if not _is_root():
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)
