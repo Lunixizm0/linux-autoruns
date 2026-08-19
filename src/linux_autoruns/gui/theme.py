@@ -15,6 +15,9 @@ CATPPUCCIN_MOCHA = {
     "mauve": "#cba6f7",
     "peach": "#fab387",
     "teal": "#94e2d5",
+    "overlay0": "#6c7086",
+    "overlay1": "#7f849c",
+    "overlay2": "#9399b2",
 }
 
 DARK_THEME_QSS = f"""
