@@ -112,10 +112,7 @@ class MainWindow(QMainWindow):
     def _configure_table_columns(self):
         header = self._table.horizontalHeader()
         for col in range(header.count()):
-            if col == 3:
-                header.setSectionResizeMode(col, QHeaderView.Stretch)
-            else:
-                header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(col, QHeaderView.Interactive)
         saved_widths = self._settings.value("column_widths")
         if saved_widths:
             for col, width in saved_widths.items():
@@ -123,6 +120,10 @@ class MainWindow(QMainWindow):
                     header.resizeSection(int(col), int(width))
                 except (ValueError, TypeError):
                     pass
+        else:
+            defaults = {0: 28, 1: 160, 2: 120, 3: 180, 4: 180, 5: 200, 6: 55, 7: 70, 8: 55, 9: 70}
+            for col, w in defaults.items():
+                header.resizeSection(col, w)
 
     def _save_column_widths(self):
         header = self._table.horizontalHeader()
