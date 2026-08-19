@@ -20,7 +20,7 @@ class UdevScanner(BaseScanner):
 
     @property
     def description(self) -> str:
-        return "Udev hardware trigger kuralları"
+        return "Udev hardware trigger rules"
 
     def scan(self) -> list[AutostartEntry]:
         entries: list[AutostartEntry] = []

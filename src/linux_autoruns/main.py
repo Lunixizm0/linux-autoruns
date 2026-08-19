@@ -16,8 +16,8 @@ def _is_root() -> bool:
 def _prompt_password_qt() -> str | None:
     password, ok = QInputDialog.getText(
         None,
-        "Root Yetkisi",
-        "Şifrenizi girin:",
+        "Root Access",
+        "Enter your password:",
         QLineEdit.EchoMode.Password,
     )
     if ok and password:
@@ -86,14 +86,14 @@ def main():
     if not _is_root():
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)
-        msg.setWindowTitle("Root Yetkisi Gerekli")
-        msg.setText("Bu uygulama tüm sistemi taramak için root yetkisi ile çalışmalıdır.")
+        msg.setWindowTitle("Root Access Required")
+        msg.setText("This application requires root access to scan the entire system.")
         msg.setInformativeText(
-            "Root olmadan bazı dosyalar erişilemez.\n\n"
-            "Root ile yeniden başlatılsın mı?"
+            "Without root, some files cannot be accessed.\n\n"
+            "Restart with root?"
         )
-        btn_relaunch = msg.addButton("Evet (sudo)", QMessageBox.AcceptRole)
-        btn_continue = msg.addButton("Hayır (devam et)", QMessageBox.RejectRole)
+        btn_relaunch = msg.addButton("Yes (sudo)", QMessageBox.AcceptRole)
+        btn_continue = msg.addButton("No (continue)", QMessageBox.RejectRole)
         msg.setDefaultButton(btn_relaunch)
         msg.exec()
         if msg.clickedButton() == btn_relaunch:
@@ -101,9 +101,9 @@ def main():
                 sys.exit(0)
             msg2 = QMessageBox()
             msg2.setIcon(QMessageBox.Critical)
-            msg2.setWindowTitle("Hata")
-            msg2.setText("sudo ile yeniden başlatılamadı.")
-            msg2.setInformativeText("Terminalden çalıştırın:\n\n  sudo linux-autoruns")
+            msg2.setWindowTitle("Error")
+            msg2.setText("Could not restart with sudo.")
+            msg2.setInformativeText("Run from terminal:\n\n  sudo linux-autoruns")
             msg2.exec()
     from .gui.main_window import MainWindow
     window = MainWindow()

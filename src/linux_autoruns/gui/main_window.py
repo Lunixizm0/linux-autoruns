@@ -73,7 +73,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self._progress_bar)
         splitter = QSplitter(Qt.Horizontal)
         self._tree = QTreeWidget()
-        self._tree.setHeaderLabel("Kategoriler")
+        self._tree.setHeaderLabel("Categories")
         self._tree.setMinimumWidth(200)
         self._tree.setMaximumWidth(350)
         self._tree.setSortingEnabled(True)
@@ -103,7 +103,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(splitter)
         self._status_bar = QStatusBar()
         self.setStatusBar(self._status_bar)
-        self._status_bar.showMessage("Tarama başlatılmadı")
+        self._status_bar.showMessage("Scan not started")
         quit_shortcut = QShortcut(QKeySequence("Ctrl+C"), self)
         quit_shortcut.activated.connect(self.close)
 
@@ -111,18 +111,18 @@ class MainWindow(QMainWindow):
         toolbar = QHBoxLayout()
         toolbar.setContentsMargins(8, 8, 8, 8)
         toolbar.setSpacing(8)
-        lbl = QLabel("🔍")
+        lbl = QLabel("Search")
         lbl.setStyleSheet(f"color: {CATPPUCCIN_MOCHA['blue']}; font-size: 16px;")
         toolbar.addWidget(lbl)
         self._search = QLineEdit()
-        self._search.setPlaceholderText("Ara... (isim, komut, dosya)")
+        self._search.setPlaceholderText("Search... (name, command, file)")
         self._search.setFixedWidth(250)
         self._search.textChanged.connect(self._on_search)
         toolbar.addWidget(self._search)
-        self._enabled_only = QCheckBox("Sadece aktif")
+        self._enabled_only = QCheckBox("Enabled only")
         self._enabled_only.stateChanged.connect(self._on_filter_changed)
         toolbar.addWidget(self._enabled_only)
-        self._edit_mode_cb = QCheckBox("Düzenleme Modu")
+        self._edit_mode_cb = QCheckBox("Edit Mode")
         self._edit_mode_cb.stateChanged.connect(self._on_edit_mode_changed)
         toolbar.addWidget(self._edit_mode_cb)
         toolbar.addStretch()
@@ -156,7 +156,7 @@ class MainWindow(QMainWindow):
         self._error_count = 0
         self._model.set_entries([])
         self._tree.clear()
-        self._scan_btn.setText("Durdur")
+        self._scan_btn.setText("Stop")
         self._export_json_btn.setEnabled(False)
         self._export_csv_btn.setEnabled(False)
         self._progress_bar.setValue(0)
@@ -169,7 +169,7 @@ class MainWindow(QMainWindow):
 
     def _on_progress(self, category: str, percent: int):
         self._progress_bar.setValue(percent)
-        self._status_bar.showMessage(f"Taranıyor: {category} ({percent}%)")
+        self._status_bar.showMessage(f"Scanning: {category} ({percent}%)")
 
     def _on_entry_found(self, entry: AutostartEntry):
         self._all_entries.append(entry)
@@ -185,9 +185,9 @@ class MainWindow(QMainWindow):
         total = len(entries)
         enabled = sum(1 for e in entries if e.enabled)
         cats = len(set(e.category for e in entries))
-        msg = f"Tamamlandı: {total} entry ({enabled} aktif) - {cats} kategori"
+        msg = f"Completed: {total} entries ({enabled} active) - {cats} categories"
         if self._error_count:
-            msg += f" ({self._error_count} hata)"
+            msg += f" ({self._error_count} errors)"
         self._status_bar.showMessage(msg)
         has_user = any(e.user for e in entries)
         self._table.setColumnHidden(3, not has_user)
@@ -195,12 +195,12 @@ class MainWindow(QMainWindow):
 
     def _on_error(self, msg: str):
         self._error_count += 1
-        self._status_bar.showMessage(f"Hata ({self._error_count}): {msg[:80]}")
+        self._status_bar.showMessage(f"Error ({self._error_count}): {msg[:80]}")
 
     def _rebuild_tree(self):
         self._tree.clear()
         root = QTreeWidgetItem(self._tree)
-        root.setText(0, f"Tümü ({len(self._all_entries)})")
+        root.setText(0, f"All ({len(self._all_entries)})")
         root.setData(0, Qt.UserRole, len(self._all_entries))
         counts: dict[str, int] = {}
         for entry in self._all_entries:
@@ -212,7 +212,7 @@ class MainWindow(QMainWindow):
 
     def _on_category_clicked(self, item: QTreeWidgetItem, column: int):
         text = item.text(0)
-        if text.startswith("Tümü"):
+        if text.startswith("All"):
             self._selected_category = None
         else:
             category = text.rsplit(" (", 1)[0] if " (" in text else text
@@ -290,7 +290,7 @@ class MainWindow(QMainWindow):
 
     def _export_json(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "JSON olarak kaydet", "autoruns_export.json", "JSON (*.json)"
+            self, "Save as JSON", "autoruns_export.json", "JSON (*.json)"
         )
         if not path:
             return
@@ -310,13 +310,13 @@ class MainWindow(QMainWindow):
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
-            self._status_bar.showMessage(f"Dışa aktarıldı: {path}")
+            self._status_bar.showMessage(f"Exported: {path}")
         except OSError as e:
-            QMessageBox.critical(self, "Hata", f"JSON kaydedilemedi: {e}")
+            QMessageBox.critical(self, "Error", f"Could not save JSON: {e}")
 
     def _export_csv(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "CSV olarak kaydet", "autoruns_export.csv", "CSV (*.csv)"
+            self, "Save as CSV", "autoruns_export.csv", "CSV (*.csv)"
         )
         if not path:
             return
@@ -337,6 +337,6 @@ class MainWindow(QMainWindow):
                         entry.last_modified or "",
                         ",".join(entry.tags),
                     ])
-            self._status_bar.showMessage(f"Dışa aktarıldı: {path}")
+            self._status_bar.showMessage(f"Exported: {path}")
         except OSError as e:
-            QMessageBox.critical(self, "Hata", f"CSV kaydedilemedi: {e}")
+            QMessageBox.critical(self, "Error", f"Could not save CSV: {e}")

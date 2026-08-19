@@ -15,7 +15,7 @@ class CronScanner(BaseScanner):
 
     @property
     def description(self) -> str:
-        return "Cron job'ları"
+        return "Cron jobs"
 
     def scan(self) -> list[AutostartEntry]:
         entries: list[AutostartEntry] = []

@@ -25,13 +25,13 @@ class DetailDialog(QDialog):
         layout = QVBoxLayout(container)
         layout.setSpacing(8)
         layout.setContentsMargins(12, 12, 12, 12)
-        self._add_section(layout, "Genel Bilgiler", self._general_fields(entry))
+        self._add_section(layout, "General Info", self._general_fields(entry))
         if entry.command:
-            self._add_section(layout, "Komut", {"Command": entry.command})
+            self._add_section(layout, "Command", {"Command": entry.command})
         if entry.exec_args:
-            self._add_section(layout, "Argümanlar", {"Args": " ".join(entry.exec_args)})
+            self._add_section(layout, "Arguments", {"Args": " ".join(entry.exec_args)})
         if entry.tags:
-            self._add_section(layout, "Etiketler", {"Tags": ", ".join(entry.tags)})
+            self._add_section(layout, "Tags", {"Tags": ", ".join(entry.tags)})
         if entry.details:
             detail_items = {}
             for k, v in entry.details.items():
@@ -39,11 +39,11 @@ class DetailDialog(QDialog):
                     detail_items[k] = ", ".join(str(i) for i in v)
                 else:
                     detail_items[k] = str(v)
-            self._add_section(layout, "Detaylar", detail_items)
+            self._add_section(layout, "Details", detail_items)
         if entry.file_path:
             content = self._read_raw_content(entry.file_path)
             if content:
-                group = QGroupBox("Ham İçerik")
+                group = QGroupBox("Raw Content")
                 vbox = QVBoxLayout()
                 text_edit = QPlainTextEdit()
                 text_edit.setPlainText(content)
@@ -52,7 +52,7 @@ class DetailDialog(QDialog):
                 mono = QFont("monospace")
                 mono.setStyleHint(QFont.Monospace)
                 text_edit.setFont(mono)
-                copy_btn = QPushButton("Kopyala")
+                copy_btn = QPushButton("Copy")
                 copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(content))
                 btn_row = QVBoxLayout()
                 btn_row.addWidget(copy_btn)
@@ -71,29 +71,29 @@ class DetailDialog(QDialog):
 
     def _general_fields(self, entry: AutostartEntry) -> dict:
         fields = {}
-        fields["Kategori"] = entry.category
-        fields["Dosya"] = entry.file_path
-        fields["Ad"] = entry.name
-        fields["Durum"] = "+ Aktif" if entry.enabled else "- Pasif"
+        fields["Category"] = entry.category
+        fields["File"] = entry.file_path
+        fields["Name"] = entry.name
+        fields["Status"] = "+ Enabled" if entry.enabled else "- Disabled"
         if entry.user:
-            fields["Kullanıcı"] = entry.user
+            fields["User"] = entry.user
         fields["Scope"] = entry.scope
         if entry.description:
-            fields["Tanım"] = entry.description
+            fields["Description"] = entry.description
         if entry.comment:
-            fields["Not"] = entry.comment
+            fields["Note"] = entry.comment
         if entry.last_modified:
-            fields["Değişim"] = entry.last_modified
+            fields["Modified"] = entry.last_modified
         if entry.file_size is not None:
             size = entry.file_size
             if size > 1024:
-                fields["Boyut"] = f"{size / 1024:.1f} KB"
+                fields["Size"] = f"{size / 1024:.1f} KB"
             else:
-                fields["Boyut"] = f"{size} B"
+                fields["Size"] = f"{size} B"
         if entry.file_permissions:
-            fields["İzinler"] = entry.file_permissions
+            fields["Permissions"] = entry.file_permissions
         if entry.owner:
-            fields["Sahip"] = entry.owner
+            fields["Owner"] = entry.owner
         return fields
 
     def _add_section(self, layout: QVBoxLayout, title: str, items: dict):
@@ -104,7 +104,7 @@ class DetailDialog(QDialog):
             lbl_val = QLabel(str(value))
             lbl_val.setWordWrap(True)
             lbl_val.setTextInteractionFlags(Qt.TextSelectableByMouse)
-            btn = QPushButton("Kopyala")
+            btn = QPushButton("Copy")
             btn.clicked.connect(lambda checked, v=str(value): QApplication.clipboard().setText(v))
             top_row = QVBoxLayout()
             top_row.addWidget(lbl_key)

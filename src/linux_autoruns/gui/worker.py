@@ -39,5 +39,5 @@ class ScanWorker(QThread):
                     self.entry_found.emit(entry)
             except Exception:
                 self.error.emit(f"{scanner.name}: {traceback.format_exc()}")
-        self.progress.emit("Tamamlandı", 100)
+        self.progress.emit("Completed", 100)
         self.scan_complete.emit(all_entries)

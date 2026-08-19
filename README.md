@@ -1,60 +1,60 @@
 # linux-autoruns
 
-Sysinternals Autoruns'un Linux alternatifi. Sisteminizdeki tüm otomatik başlama noktarını tarar ve PySide6 GUI'de listeler.
+Windows Autoruns equivalent for Linux. Scans all autostart entry points on your system and lists them in a PySide6 GUI.
 
-## Özellikler
+## Features
 
-- 16 scanner: XDG Autostart, Systemd, SysVinit, Cron, Shell Profile, X11, Desktop Environment (GNOME, KDE, XFCE, Sway, Hyprland, Cinnamon, MATE, LXQt, COSMIC), Udev, D-Bus, Display Manager, Kernel (sysctl), Network Services (NGINX/Apache/SSH), PAM, tmpfiles.d, inetd/xinetd, GRUB
-- Grafik Arayüzü
-- Kategori bazlı filtreleme ve arama
-- Detay popup (sağ tık Inspect Details)
-- JSON ve CSV export
-- Düzenleme modu (enable/disable toggle)
-- Ayarların hatırlanması (pencere boyutu)
-- Root yetkisi ile otomatik yeniden başlatma (sudo)
+- 16 scanners: XDG Autostart, Systemd, SysVinit, Cron, Shell Profile, X11, Desktop Environment (GNOME, KDE, XFCE, Sway, Hyprland, Cinnamon, MATE, LXQt, COSMIC), Udev, D-Bus, Display Manager, Kernel (sysctl), Network Services (NGINX/Apache/SSH), PAM, tmpfiles.d, inetd/xinetd, GRUB
+- Graphical user interface
+- Category-based filtering and search
+- Detail popup (right-click Inspect Details)
+- JSON and CSV export
+- Edit mode (enable/disable toggle)
+- Settings persistence (window size)
+- Automatic restart with root privileges (sudo)
 
-## Kurulum
+## Installation
 
 ```bash
 pip install linux-autoruns
-# veya
+# or
 pipx install linux-autoruns
 ```
 
-## Çalıştırma
+## Usage
 
 ```bash
-linux-autoruns               # root değilse sudo dialogu açar
-sudo linux-autoruns          # root ile doğrudan başlat
+linux-autoruns               # prompts for sudo if not root
+sudo linux-autoruns          # runs directly with root
 ```
 
-## Geliştirme
+## Development
 
-Geliştirme ortamı için uv kullanılır:
+Development environment uses uv:
 
 ```bash
 git clone https://github.com/Lunixizm0/linux-autoruns.git
 cd linux-autoruns
-uv sync                      # ortamı kur
-uv run linux-autoruns        # uygulamayı çalıştır
+uv sync                      # set up environment
+uv run linux-autoruns        # run the app
 ```
 
-### Testler
+### Testing
 
 ```bash
 uv run pytest tests/ -v
 ```
 
-### Paketleme
+### Building
 
 ```bash
-uv run python -m build       # sdist + wheel oluşturur
+uv run python -m build       # creates sdist + wheel
 ```
 
-## Teknoloji
+## Tech Stack
 
 - Python 3.14
 - PySide6 6.11+ (Qt6 GUI)
 - hatchling (build backend)
-- uv (geliştirme ortamı)
+- uv (development environment)
 - pytest (test framework)

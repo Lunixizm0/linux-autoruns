@@ -15,7 +15,7 @@ class XDGScanner(BaseScanner):
 
     @property
     def description(self) -> str:
-        return "XDG autostart .desktop dosyaları"
+        return "XDG autostart .desktop files"
 
     def scan(self) -> list[AutostartEntry]:
         entries: list[AutostartEntry] = []
