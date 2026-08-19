@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import csv
-import io
 import json
 import os
 import subprocess
@@ -9,12 +8,13 @@ from datetime import datetime, timezone
 
 from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtGui import QColor, QKeySequence, QShortcut
-from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog,
-                               QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-                               QMainWindow, QMenu, QMessageBox, QProgressBar,
-                               QPushButton, QSplitter, QStatusBar, QTableView,
-                               QTreeWidget, QTreeWidgetItem, QVBoxLayout,
-                               QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox,
+                                QFileDialog, QHBoxLayout, QHeaderView,
+                                QLabel, QLineEdit, QMainWindow, QMenu,
+                                QMessageBox, QProgressBar, QPushButton,
+                                QSplitter, QStatusBar, QTableView,
+                                QToolButton, QTreeWidget, QTreeWidgetItem,
+                                QVBoxLayout, QWidget)
 
 from ..models import AutostartEntry
 from ..scanners import SCANNERS
@@ -22,6 +22,9 @@ from .detail_dialog import DetailDialog
 from .models import EntryFilterProxy, EntryTableModel
 from .theme import CATPPUCCIN_MOCHA, DARK_THEME_QSS
 from .worker import ScanWorker
+
+_SEARCH_HISTORY_KEY = "search_history"
+_MAX_HISTORY = 20
 
 
 class MainWindow(QMainWindow):
@@ -56,6 +59,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         self._settings.setValue("geometry", self.saveGeometry())
+        self._save_search_history()
         super().closeEvent(event)
 
     def _setup_ui(self):
@@ -66,6 +70,8 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(0)
         toolbar = self._create_toolbar()
         main_layout.addLayout(toolbar)
+        filter_bar = self._create_filter_bar()
+        main_layout.addLayout(filter_bar)
         self._progress_bar = QProgressBar()
         self._progress_bar.setMaximumHeight(4)
         self._progress_bar.setTextVisible(False)
@@ -115,10 +121,23 @@ class MainWindow(QMainWindow):
         lbl.setStyleSheet(f"color: {CATPPUCCIN_MOCHA['blue']}; font-size: 16px;")
         toolbar.addWidget(lbl)
         self._search = QLineEdit()
-        self._search.setPlaceholderText("Search... (name, command, file)")
-        self._search.setFixedWidth(250)
+        self._search.setPlaceholderText("Search... (key:value, name:ssh, tag:boot)")
+        self._search.setFixedWidth(320)
+        self._search.setClearButtonEnabled(True)
         self._search.textChanged.connect(self._on_search)
+        self._search.returnPressed.connect(self._on_search_commit)
+        self._search.setCompleter(None)
         toolbar.addWidget(self._search)
+        self._history_btn = QToolButton()
+        self._history_btn.setText("History")
+        self._history_btn.setPopupMode(QToolButton.InstantPopup)
+        self._history_menu = QMenu(self._history_btn)
+        self._history_btn.setMenu(self._history_menu)
+        self._history_btn.setStyleSheet(
+            f"QToolButton {{ color: {CATPPUCCIN_MOCHA['overlay1']}; "
+            f"font-size: 11px; padding: 2px 6px; border: none; }}"
+        )
+        toolbar.addWidget(self._history_btn)
         self._enabled_only = QCheckBox("Enabled only")
         self._enabled_only.stateChanged.connect(self._on_filter_changed)
         toolbar.addWidget(self._enabled_only)
@@ -126,6 +145,11 @@ class MainWindow(QMainWindow):
         self._edit_mode_cb.stateChanged.connect(self._on_edit_mode_changed)
         toolbar.addWidget(self._edit_mode_cb)
         toolbar.addStretch()
+        self._result_label = QLabel("")
+        self._result_label.setStyleSheet(
+            f"color: {CATPPUCCIN_MOCHA['overlay1']}; font-size: 12px;"
+        )
+        toolbar.addWidget(self._result_label)
         self._scan_btn = QPushButton("Scan")
         self._scan_btn.clicked.connect(self._start_scan)
         toolbar.addWidget(self._scan_btn)
@@ -138,6 +162,56 @@ class MainWindow(QMainWindow):
         self._export_csv_btn.setEnabled(False)
         toolbar.addWidget(self._export_csv_btn)
         return toolbar
+
+    def _create_filter_bar(self) -> QHBoxLayout:
+        bar = QHBoxLayout()
+        bar.setContentsMargins(8, 0, 8, 4)
+        bar.setSpacing(4)
+        lbl = QLabel("Scope:")
+        lbl.setStyleSheet(f"color: {CATPPUCCIN_MOCHA['overlay1']}; font-size: 11px;")
+        bar.addWidget(lbl)
+        self._scope_combo = QComboBox()
+        self._scope_combo.addItem("All")
+        self._scope_combo.addItem("System")
+        self._scope_combo.addItem("User")
+        self._scope_combo.setFixedWidth(80)
+        self._scope_combo.currentTextChanged.connect(self._on_scope_changed)
+        bar.addWidget(self._scope_combo)
+        bar.addSpacing(8)
+        lbl2 = QLabel("Tag:")
+        lbl2.setStyleSheet(f"color: {CATPPUCCIN_MOCHA['overlay1']}; font-size: 11px;")
+        bar.addWidget(lbl2)
+        self._tag_combo = QComboBox()
+        self._tag_combo.addItem("All")
+        self._tag_combo.setFixedWidth(120)
+        self._tag_combo.currentTextChanged.connect(self._on_tag_changed)
+        bar.addWidget(self._tag_combo)
+        bar.addSpacing(8)
+        for label, query in [
+            ("All", ""),
+            ("Enabled", "enabled:true"),
+            ("Disabled", "enabled:false"),
+            ("Boot", "tag:boot"),
+            ("Login", "tag:login"),
+            ("Timer", "tag:timer"),
+            ("Session", "tag:session"),
+        ]:
+            btn = QPushButton(label)
+            btn.setCheckable(True)
+            btn.setFixedHeight(24)
+            btn.setStyleSheet(
+                f"QPushButton {{ font-size: 11px; padding: 2px 8px; "
+                f"border: 1px solid {CATPPUCCIN_MOCHA['surface1']}; "
+                f"border-radius: 4px; color: {CATPPUCCIN_MOCHA['text']}; "
+                f"background: {CATPPUCCIN_MOCHA['surface0']}; }}"
+                f"QPushButton:checked {{ background: {CATPPUCCIN_MOCHA['blue']}; "
+                f"color: {CATPPUCCIN_MOCHA['base']}; border-color: {CATPPUCCIN_MOCHA['blue']}; }}"
+            )
+            btn.clicked.connect(lambda checked, q=query, b=btn: self._on_quick_filter(q, b))
+            bar.addWidget(btn)
+        bar.addStretch()
+        self._filter_bar = bar
+        return bar
 
     def _apply_theme(self):
         self.setStyleSheet(DARK_THEME_QSS)
@@ -182,6 +256,9 @@ class MainWindow(QMainWindow):
         self._export_json_btn.setEnabled(True)
         self._export_csv_btn.setEnabled(True)
         self._progress_bar.setValue(100)
+        self._rebuild_tree()
+        self._rebuild_tag_list()
+        self._update_result_count()
         total = len(entries)
         enabled = sum(1 for e in entries if e.enabled)
         cats = len(set(e.category for e in entries))
@@ -191,7 +268,6 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage(msg)
         has_user = any(e.user for e in entries)
         self._table.setColumnHidden(3, not has_user)
-        self._rebuild_tree()
 
     def _on_error(self, msg: str):
         self._error_count += 1
@@ -210,6 +286,29 @@ class MainWindow(QMainWindow):
             item.setText(0, f"{cat} ({counts[cat]})")
             item.setData(0, Qt.UserRole, counts[cat])
 
+    def _rebuild_tag_list(self):
+        tags: set[str] = set()
+        for entry in self._all_entries:
+            tags.update(entry.tags)
+        current = self._tag_combo.currentText()
+        self._tag_combo.blockSignals(True)
+        self._tag_combo.clear()
+        self._tag_combo.addItem("All")
+        for tag in sorted(tags):
+            self._tag_combo.addItem(tag)
+        idx = self._tag_combo.findText(current)
+        if idx >= 0:
+            self._tag_combo.setCurrentIndex(idx)
+        self._tag_combo.blockSignals(False)
+
+    def _update_result_count(self):
+        total = len(self._all_entries)
+        visible = self._proxy.rowCount()
+        if visible == total:
+            self._result_label.setText(f"{total} entries")
+        else:
+            self._result_label.setText(f"{visible} / {total} entries")
+
     def _on_category_clicked(self, item: QTreeWidgetItem, column: int):
         text = item.text(0)
         if text.startswith("All"):
@@ -225,12 +324,69 @@ class MainWindow(QMainWindow):
     def _apply_filters(self):
         self._proxy.set_category_filter(self._selected_category)
         self._proxy.set_enabled_only(self._enabled_only.isChecked())
+        scope = self._scope_combo.currentText()
+        self._proxy.set_scope_filter(None if scope == "All" else scope.lower())
+        tag = self._tag_combo.currentText()
+        self._proxy.set_tag_filter(None if tag == "All" else tag)
         self._proxy.set_search_text(self._search.text())
         has_user = any(e.user for e in self._all_entries)
         self._table.setColumnHidden(3, not has_user)
+        self._update_result_count()
 
     def _on_search(self, text: str):
         self._search_debounce.start()
+
+    def _on_search_commit(self):
+        text = self._search.text().strip()
+        if text:
+            self._add_to_history(text)
+        self._apply_filters()
+
+    def _add_to_history(self, text: str):
+        history = self._settings.value(_SEARCH_HISTORY_KEY, []) or []
+        if text in history:
+            history.remove(text)
+        history.insert(0, text)
+        history = history[:_MAX_HISTORY]
+        self._settings.setValue(_SEARCH_HISTORY_KEY, history)
+        self._refresh_history_menu()
+
+    def _save_search_history(self):
+        pass
+
+    def _refresh_history_menu(self):
+        self._history_menu.clear()
+        history = self._settings.value(_SEARCH_HISTORY_KEY, []) or []
+        if not history:
+            self._history_menu.addAction("(empty)")
+            return
+        for text in history:
+            action = self._history_menu.addAction(text)
+            action.triggered.connect(lambda checked, t=text: self._search.setText(t))
+        self._history_menu.addSeparator()
+        clear_action = self._history_menu.addAction("Clear history")
+        clear_action.triggered.connect(self._clear_history)
+
+    def _clear_history(self):
+        self._settings.setValue(_SEARCH_HISTORY_KEY, [])
+        self._refresh_history_menu()
+
+    def _on_scope_changed(self, text: str):
+        self._apply_filters()
+
+    def _on_tag_changed(self, text: str):
+        self._apply_filters()
+
+    def _on_quick_filter(self, query: str, btn: QPushButton):
+        for i in range(self._filter_bar.count()):
+            w = self._filter_bar.itemAt(i).widget()
+            if isinstance(w, QPushButton) and w.isCheckable() and w != btn:
+                w.setChecked(False)
+        if btn.isChecked():
+            self._search.setText(query)
+        else:
+            self._search.setText("")
+        self._apply_filters()
 
     def _on_filter_changed(self):
         self._apply_filters()
