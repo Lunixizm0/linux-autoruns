@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -13,9 +14,12 @@ def _is_root() -> bool:
 
 
 def _find_askpass() -> str | None:
-    for name in ["zenity", "kdialog", "ssh-askpass", "/usr/libexec/openssh/ssh-askpass"]:
-        path = shutil.which(name) if not name.startswith("/") else name
-        if path and os.path.isfile(path):
+    wrapper = Path(__file__).parent / "askpass.sh"
+    if wrapper.exists():
+        return str(wrapper)
+    for name in ["zenity", "kdialog", "ssh-askpass"]:
+        path = shutil.which(name)
+        if path:
             return path
     return None
 
@@ -31,8 +35,7 @@ def _try_relaunch_with_sudo() -> bool:
     env["DISPLAY"] = os.environ.get("DISPLAY", ":0")
     env["XAUTHORITY"] = os.environ.get("XAUTHORITY", os.path.expanduser("~/.Xauthority"))
     try:
-        cmd = ["sudo", "-A", exe]
-        proc = subprocess.Popen(cmd, env=env)
+        proc = subprocess.Popen(["sudo", "-A", exe], env=env)
         proc.wait()
         return proc.returncode == 0
     except FileNotFoundError:

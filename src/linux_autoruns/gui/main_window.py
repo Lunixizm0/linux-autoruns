@@ -4,8 +4,8 @@ import json
 import os
 import sys
 
-from PySide6.QtCore import QShortcut, Qt
-from PySide6.QtGui import QColor, QKeySequence
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog,
                                QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                                QMainWindow, QMenu, QMessageBox, QPushButton,
