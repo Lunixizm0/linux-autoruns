@@ -15,7 +15,7 @@ def _is_root() -> bool:
 
 def _find_askpass() -> str | None:
     wrapper = Path(__file__).parent / "askpass.sh"
-    if wrapper.exists():
+    if wrapper.exists() and os.access(str(wrapper), os.X_OK):
         return str(wrapper)
     for name in ["zenity", "kdialog", "ssh-askpass"]:
         path = shutil.which(name)

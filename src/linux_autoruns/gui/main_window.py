@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
+from datetime import datetime, timezone
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtGui import QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog,
                                QHBoxLayout, QHeaderView, QLabel, QLineEdit,
@@ -29,6 +31,11 @@ class MainWindow(QMainWindow):
         self._all_entries: list[AutostartEntry] = []
         self._worker: ScanWorker | None = None
         self._edit_mode = False
+        self._selected_category: str | None = None
+        self._search_debounce = QTimer()
+        self._search_debounce.setSingleShot(True)
+        self._search_debounce.setInterval(150)
+        self._search_debounce.timeout.connect(self._apply_filters)
         self._setup_ui()
         self._apply_theme()
         self._start_scan()
@@ -118,6 +125,7 @@ class MainWindow(QMainWindow):
             self._scan_btn.setText("Scan")
             return
         self._all_entries.clear()
+        self._selected_category = None
         self._table.setRowCount(0)
         self._tree.clear()
         self._scan_btn.setText("Durdur")
@@ -133,7 +141,6 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage(f"Taranıyor: {category} ({percent}%)")
 
     def _on_entry_found(self, entry: AutostartEntry):
-        self._all_entries.append(entry)
         self._add_table_row(entry)
         self._update_tree_count(entry.category)
 
@@ -187,35 +194,37 @@ class MainWindow(QMainWindow):
     def _on_category_clicked(self, item: QTreeWidgetItem, column: int):
         text = item.text(0)
         category = text.rsplit(" (", 1)[0] if " (" in text else text
-        self._filter_by_category(category)
+        if self._selected_category == category:
+            self._selected_category = None
+        else:
+            self._selected_category = category
+        self._apply_filters()
 
-    def _filter_by_category(self, category: str | None):
+    def _apply_filters(self):
+        search = self._search.text().lower()
+        enabled_only = self._enabled_only.isChecked()
+        category = self._selected_category
         self._table.setRowCount(0)
         has_user = False
         for entry in self._all_entries:
             if category and entry.category != category:
                 continue
+            if enabled_only and not entry.enabled:
+                continue
+            if search:
+                searchable = f"{entry.name} {entry.description or ''} {entry.command or ''} {entry.file_path}".lower()
+                if search not in searchable:
+                    continue
             self._add_table_row(entry)
             if entry.user:
                 has_user = True
         self._table.setColumnHidden(3, not has_user)
 
     def _on_search(self, text: str):
-        self._table.setRowCount(0)
-        has_user = False
-        for entry in self._all_entries:
-            if self._enabled_only.isChecked() and not entry.enabled:
-                continue
-            searchable = f"{entry.name} {entry.description or ''} {entry.command or ''} {entry.file_path}".lower()
-            if text.lower() in searchable:
-                self._add_table_row(entry)
-                if entry.user:
-                    has_user = True
-        self._table.setColumnHidden(3, not has_user)
+        self._search_debounce.start()
 
     def _on_filter_changed(self):
-        search = self._search.text()
-        self._on_search(search)
+        self._apply_filters()
 
     def _on_context_menu(self, pos):
         row = self._table.rowAt(pos.y())
@@ -250,7 +259,7 @@ class MainWindow(QMainWindow):
         elif action == open_location:
             dirpath = os.path.dirname(entry.file_path)
             if os.path.isdir(dirpath):
-                os.system(f"xdg-open '{dirpath}' &")
+                subprocess.Popen(["xdg-open", dirpath])
 
     def _on_inspect(self, index):
         row = index.row()
@@ -271,7 +280,7 @@ class MainWindow(QMainWindow):
         if not path:
             return
         data = {
-            "scan_time": __import__("datetime").datetime.now().isoformat(),
+            "scan_time": datetime.now(tz=timezone.utc).isoformat(),
             "hostname": os.uname().nodename,
             "entries": [e.to_dict() for e in self._all_entries],
             "summary": {

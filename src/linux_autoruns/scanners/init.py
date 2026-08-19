@@ -67,14 +67,26 @@ class InitScanner(BaseScanner):
                 continue
             content = self._read_file(path)
             enabled = True
+            command = None
             if content:
-                enabled = "#!/bin/false" not in content and "exit 0" not in content.splitlines()[-3:]
+                lines = content.splitlines()
+                enabled = "#!/bin/false" not in content
+                if len(lines) >= 3:
+                    enabled = enabled and "exit 0" not in lines[-3:]
+                elif lines:
+                    enabled = enabled and "exit 0" not in lines
+                cmd_lines = [
+                    l for l in lines
+                    if l.strip() and not l.strip().startswith("#") and not l.strip().startswith("!")
+                ]
+                if cmd_lines:
+                    command = "\n".join(cmd_lines)
             info = self._get_file_info(path)
             entries.append(self._make_entry(
                 file_path=path,
                 name=Path(path).name,
                 enabled=enabled,
-                command=content.strip() if content else None,
+                command=command,
                 scope="system",
                 last_modified=self._get_mtime_iso(path),
                 file_size=info["size"],
