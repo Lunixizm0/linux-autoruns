@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Autoruns program for linux."
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "pyside6>=6.11.2",
+]
 
 [project.scripts]
 linux-autoruns = "linux_autoruns:main"

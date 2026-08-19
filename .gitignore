@@ -220,6 +220,6 @@ __marimo__/
 .streamlit/secrets.toml
 
 
-
-
+AGENTS.md
+TODO.md
 uv.lock
