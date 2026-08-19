@@ -156,7 +156,6 @@ class MainWindow(QMainWindow):
         self._error_count = 0
         self._model.set_entries([])
         self._tree.clear()
-        self._add_tree_root()
         self._scan_btn.setText("Durdur")
         self._export_json_btn.setEnabled(False)
         self._export_csv_btn.setEnabled(False)
@@ -168,11 +167,6 @@ class MainWindow(QMainWindow):
         self._worker.error.connect(self._on_error)
         self._worker.start()
 
-    def _add_tree_root(self):
-        item = QTreeWidgetItem(self._tree)
-        item.setText(0, "Tümü (0)")
-        item.setData(0, Qt.UserRole, 0)
-
     def _on_progress(self, category: str, percent: int):
         self._progress_bar.setValue(percent)
         self._status_bar.showMessage(f"Taranıyor: {category} ({percent}%)")
@@ -180,7 +174,6 @@ class MainWindow(QMainWindow):
     def _on_entry_found(self, entry: AutostartEntry):
         self._all_entries.append(entry)
         self._model.add_entry(entry)
-        self._update_tree_count(entry.category)
 
     def _on_scan_complete(self, entries: list):
         self._all_entries = entries
@@ -198,31 +191,24 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage(msg)
         has_user = any(e.user for e in entries)
         self._table.setColumnHidden(3, not has_user)
-        self._update_tree_root_count()
+        self._rebuild_tree()
 
     def _on_error(self, msg: str):
         self._error_count += 1
         self._status_bar.showMessage(f"Hata ({self._error_count}): {msg[:80]}")
 
-    def _update_tree_root_count(self):
-        if self._tree.topLevelItemCount() > 0:
-            item = self._tree.topLevelItem(0)
-            item.setText(0, f"Tümü ({len(self._all_entries)})")
-            item.setData(0, Qt.UserRole, len(self._all_entries))
-
-    def _update_tree_count(self, category: str):
-        for i in range(1, self._tree.topLevelItemCount()):
-            item = self._tree.topLevelItem(i)
-            if item.text(0).startswith(category):
-                count = item.data(0, Qt.UserRole) or 0
-                count += 1
-                item.setData(0, Qt.UserRole, count)
-                item.setText(0, f"{category} ({count})")
-                return
-        item = QTreeWidgetItem(self._tree)
-        item.setText(0, f"{category} (1)")
-        item.setData(0, Qt.UserRole, 1)
-        self._update_tree_root_count()
+    def _rebuild_tree(self):
+        self._tree.clear()
+        root = QTreeWidgetItem(self._tree)
+        root.setText(0, f"Tümü ({len(self._all_entries)})")
+        root.setData(0, Qt.UserRole, len(self._all_entries))
+        counts: dict[str, int] = {}
+        for entry in self._all_entries:
+            counts[entry.category] = counts.get(entry.category, 0) + 1
+        for cat in sorted(counts):
+            item = QTreeWidgetItem(self._tree)
+            item.setText(0, f"{cat} ({counts[cat]})")
+            item.setData(0, Qt.UserRole, counts[cat])
 
     def _on_category_clicked(self, item: QTreeWidgetItem, column: int):
         text = item.text(0)

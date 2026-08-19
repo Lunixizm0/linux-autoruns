@@ -4,12 +4,12 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import (QApplication, QDialog, QGroupBox,
-                               QLabel, QPlainTextEdit, QPushButton,
-                               QScrollArea, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QDialog, QGroupBox, QLabel,
+                               QPlainTextEdit, QPushButton, QScrollArea,
+                               QVBoxLayout, QWidget)
 
-from .theme import DARK_THEME_QSS
 from ..models import AutostartEntry
+from .theme import DARK_THEME_QSS
 
 
 class DetailDialog(QDialog):
@@ -74,7 +74,7 @@ class DetailDialog(QDialog):
         fields["Kategori"] = entry.category
         fields["Dosya"] = entry.file_path
         fields["Ad"] = entry.name
-        fields["Durum"] = "✓ Aktif" if entry.enabled else "✗ Pasif"
+        fields["Durum"] = "+ Aktif" if entry.enabled else "- Pasif"
         if entry.user:
             fields["Kullanıcı"] = entry.user
         fields["Scope"] = entry.scope
