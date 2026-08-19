@@ -5,7 +5,6 @@ import shutil
 import subprocess
 import sys
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QApplication, QInputDialog, QLineEdit,
                                QMessageBox)
 
@@ -13,18 +12,6 @@ from PySide6.QtWidgets import (QApplication, QInputDialog, QLineEdit,
 def _is_root() -> bool:
     return os.geteuid() == 0
 
-
-def _find_askpass_helper() -> str | None:
-    helpers = [
-        "zenity", "kdialog", "ssh-askpass", "ksshaskpass",
-        "lxqt-sudo", "lxqt-openssh-askpass", "gnome-ssh-askpass",
-        "x11-askpass",
-    ]
-    for name in helpers:
-        path = shutil.which(name)
-        if path:
-            return path
-    return None
 
 def _prompt_password_qt() -> str | None:
     password, ok = QInputDialog.getText(
@@ -37,26 +24,11 @@ def _prompt_password_qt() -> str | None:
         return password
     return None
 
+
 def _try_relaunch() -> bool:
     exe = shutil.which("linux-autoruns")
     if not exe:
         exe = sys.executable
-
-    askpass = _find_askpass_helper()
-
-    if askpass:
-        env = os.environ.copy()
-        env["SUDO_ASKPASS"] = askpass
-        env["DISPLAY"] = os.environ.get("DISPLAY", ":0")
-        env["XAUTHORITY"] = os.environ.get(
-            "XAUTHORITY", os.path.expanduser("~/.Xauthority")
-        )
-        try:
-            proc = subprocess.Popen(["sudo", "-A", exe], env=env)
-            proc.wait()
-            return proc.returncode == 0
-        except FileNotFoundError:
-            return False
 
     password = _prompt_password_qt()
     if not password:
@@ -72,6 +44,7 @@ def _try_relaunch() -> bool:
         return proc.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
+
 
 def main():
     app = QApplication(sys.argv)
