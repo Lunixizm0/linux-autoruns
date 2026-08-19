@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import glob
 import os
 import stat
@@ -8,6 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .models import AutostartEntry
+
+MAX_FILE_SIZE = 1 * 1024 * 1024  # 1MB
 
 
 class BaseScanner(ABC):
@@ -28,7 +31,10 @@ class BaseScanner(ABC):
 
     def _read_file(self, path: str) -> str | None:
         try:
-            return Path(path).read_text(encoding="utf-8", errors="replace")
+            p = Path(path)
+            if p.stat().st_size > MAX_FILE_SIZE:
+                return None
+            return p.read_text(encoding="utf-8", errors="replace")
         except (OSError, PermissionError):
             return None
 
@@ -39,6 +45,7 @@ class BaseScanner(ABC):
         except (OSError, ValueError):
             return None
 
+    @functools.lru_cache(maxsize=256)
     def _get_file_info(self, path: str) -> dict:
         try:
             s = os.stat(path)

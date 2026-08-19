@@ -7,7 +7,7 @@ import os
 import subprocess
 from datetime import datetime, timezone
 
-from PySide6.QtCore import QSettings, QTimer, Qt
+from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtGui import QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog,
                                QHBoxLayout, QHeaderView, QLabel, QLineEdit,
@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog,
 from ..models import AutostartEntry
 from ..scanners import SCANNERS
 from .detail_dialog import DetailDialog
-from .models import EntryTableModel, EntryFilterProxy
+from .models import EntryFilterProxy, EntryTableModel
 from .theme import CATPPUCCIN_MOCHA, DARK_THEME_QSS
 from .worker import ScanWorker
 
@@ -341,7 +341,7 @@ class MainWindow(QMainWindow):
                                  "Command", "Path", "Modified", "Tags"])
                 for entry in self._all_entries:
                     writer.writerow([
-                        "✓" if entry.enabled else "✗",
+                        "+" if entry.enabled else "-",
                         entry.name,
                         entry.category,
                         entry.user or "",
