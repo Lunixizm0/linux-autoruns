@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import (QApplication, QDialog, QGroupBox, QLabel,
-                               QPlainTextEdit, QPushButton, QScrollArea,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QDialog, QGroupBox,
+                               QLabel, QPlainTextEdit, QPushButton,
+                               QScrollArea, QVBoxLayout, QWidget)
 
 from ..gui.theme import DARK_THEME_QSS
 from ..models import AutostartEntry
@@ -52,7 +52,6 @@ class DetailDialog(QDialog):
                 mono.setStyleHint(QFont.Monospace)
                 text_edit.setFont(mono)
                 copy_btn = QPushButton("Kopyala")
-                copy_btn.setFixedWidth(80)
                 copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(content))
                 btn_row = QVBoxLayout()
                 btn_row.addWidget(copy_btn)
@@ -101,15 +100,11 @@ class DetailDialog(QDialog):
         group = QGroupBox(title)
         vbox = QVBoxLayout()
         for key, value in items.items():
-            col = QVBoxLayout()
             lbl_key = QLabel(f"{key}:")
             lbl_val = QLabel(str(value))
             lbl_val.setWordWrap(True)
             lbl_val.setTextInteractionFlags(Qt.TextSelectableByMouse)
-            col.addWidget(lbl_key)
-            col.addWidget(lbl_val)
             btn = QPushButton("Kopyala")
-            btn.setFixedWidth(70)
             btn.clicked.connect(lambda checked, v=str(value): QApplication.clipboard().setText(v))
             top_row = QVBoxLayout()
             top_row.addWidget(lbl_key)

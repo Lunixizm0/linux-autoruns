@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
+from PySide6.QtCore import QShortcut, Qt
+from PySide6.QtGui import QColor, QKeySequence
 from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog,
                                QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                                QMainWindow, QMenu, QMessageBox, QPushButton,
@@ -27,6 +28,7 @@ class MainWindow(QMainWindow):
         self.resize(1200, 700)
         self._all_entries: list[AutostartEntry] = []
         self._worker: ScanWorker | None = None
+        self._edit_mode = False
         self._setup_ui()
         self._apply_theme()
         self._start_scan()
@@ -44,11 +46,13 @@ class MainWindow(QMainWindow):
         self._tree.setHeaderLabel("Kategoriler")
         self._tree.setMinimumWidth(200)
         self._tree.setMaximumWidth(350)
+        self._tree.setSortingEnabled(True)
+        self._tree.sortByColumn(0, Qt.AscendingOrder)
         self._tree.itemClicked.connect(self._on_category_clicked)
         splitter.addWidget(self._tree)
         self._table = QTableWidget()
         self._table.setColumnCount(6)
-        self._table.setHorizontalHeaderLabels(["+", "Name", "Category", "User", "Description", "Modified"])
+        self._table.setHorizontalHeaderLabels(["✓", "Name", "Category", "User", "Description", "Modified"])
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
         self._table.setSelectionMode(QTableWidget.SingleSelection)
         self._table.setAlternatingRowColors(True)
@@ -71,6 +75,8 @@ class MainWindow(QMainWindow):
         self._status_bar = QStatusBar()
         self.setStatusBar(self._status_bar)
         self._status_bar.showMessage("Tarama başlatılmadı")
+        quit_shortcut = QShortcut(QKeySequence("Ctrl+C"), self)
+        quit_shortcut.activated.connect(self.close)
 
     def _create_toolbar(self) -> QHBoxLayout:
         toolbar = QHBoxLayout()
@@ -87,6 +93,9 @@ class MainWindow(QMainWindow):
         self._enabled_only = QCheckBox("Sadece aktif")
         self._enabled_only.stateChanged.connect(self._on_filter_changed)
         toolbar.addWidget(self._enabled_only)
+        self._edit_mode_cb = QCheckBox("Düzenleme Modu")
+        self._edit_mode_cb.stateChanged.connect(self._on_edit_mode_changed)
+        toolbar.addWidget(self._edit_mode_cb)
         toolbar.addStretch()
         self._scan_btn = QPushButton("Scan")
         self._scan_btn.clicked.connect(self._start_scan)
@@ -99,6 +108,9 @@ class MainWindow(QMainWindow):
 
     def _apply_theme(self):
         self.setStyleSheet(DARK_THEME_QSS)
+
+    def _on_edit_mode_changed(self, state):
+        self._edit_mode = state == Qt.Checked.value
 
     def _start_scan(self):
         if self._worker and self._worker.isRunning():
@@ -142,7 +154,7 @@ class MainWindow(QMainWindow):
     def _add_table_row(self, entry: AutostartEntry):
         row = self._table.rowCount()
         self._table.insertRow(row)
-        status = "+" if entry.enabled else "-"
+        status = "✓" if entry.enabled else "✗"
         status_item = QTableWidgetItem(status)
         status_item.setTextAlignment(Qt.AlignCenter)
         if entry.enabled:
@@ -216,16 +228,6 @@ class MainWindow(QMainWindow):
         if not entry:
             return
         menu = QMenu(self)
-        menu.setStyleSheet(f"""
-            QMenu {{
-                background-color: {CATPPUCCIN_MOCHA['mantle']};
-                color: {CATPPUCCIN_MOCHA['text']};
-                border: 1px solid {CATPPUCCIN_MOCHA['surface0']};
-            }}
-            QMenu::item:selected {{
-                background-color: {CATPPUCCIN_MOCHA['surface1']};
-            }}
-        """)
         copy_name = menu.addAction("Copy Name")
         copy_path = menu.addAction("Copy Path")
         copy_command = menu.addAction("Copy Command")
