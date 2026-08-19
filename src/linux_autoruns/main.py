@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -31,8 +32,6 @@ def _find_executable() -> str:
     exe = shutil.which("linux-autoruns")
     if exe:
         return exe
-    if hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix):
-        return sys.executable
     return sys.executable
 
 
@@ -50,15 +49,30 @@ def _create_askpass_wrapper(helper: str) -> str:
     xauthority = os.environ.get("XAUTHORITY", os.path.expanduser("~/.Xauthority"))
     helper_name = Path(helper).name
 
+    if helper_name in ("zenity",):
+        run_cmd = f'exec "{helper}" --password --title="Password"'
+    elif helper_name in ("kdialog",):
+        run_cmd = f'exec "{helper}" --password "Enter your password:"'
+    else:
+        run_cmd = f'exec "{helper}" "$@"'
+
     content = f"""#!/bin/bash
 export DISPLAY="{display}"
 export XAUTHORITY="{xauthority}"
-exec "{helper}" "$@"
+{run_cmd}
 """
-    fd, wrapper_path = tempfile.mkstemp(prefix=f"askpass_{helper_name}_", suffix=".sh")
+    shm_dir = Path("/dev/shm")
+    if not shm_dir.is_dir():
+        shm_dir = Path(tempfile.gettempdir())
+
+    fd, wrapper_path = tempfile.mkstemp(
+        prefix=".askpass_",
+        suffix=".sh",
+        dir=str(shm_dir),
+    )
     os.close(fd)
     Path(wrapper_path).write_text(content)
-    os.chmod(wrapper_path, 0o700)
+    os.chmod(wrapper_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
     return wrapper_path
 
 
@@ -78,6 +92,7 @@ def _try_relaunch() -> bool:
     env["PATH"] = paths
 
     helper = _find_askpass_helper()
+    wrapper = None
     if helper:
         wrapper = _create_askpass_wrapper(helper)
         try:
@@ -104,10 +119,11 @@ def _try_relaunch() -> bool:
         except (FileNotFoundError, subprocess.TimeoutExpired):
             pass
         finally:
-            try:
-                os.unlink(wrapper)
-            except OSError:
-                pass
+            if wrapper:
+                try:
+                    os.unlink(wrapper)
+                except OSError:
+                    pass
 
     password = _prompt_password_qt()
     if not password:

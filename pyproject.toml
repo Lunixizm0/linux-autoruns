@@ -1,6 +1,6 @@
 [project]
 name = "linux-autoruns"
-version = "2.10.0"
+version = "2.10.1"
 description = "Windows Autoruns equivalent for Linux. Scans all autostart entry points."
 readme = "README.md"
 requires-python = ">=3.14"
