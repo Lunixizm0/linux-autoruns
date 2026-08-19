@@ -35,8 +35,8 @@ echo ""
 echo "PyPI üzerinde ${VERSION} versiyonu bekleniyor..."
 
 PYPI_URL="https://pypi.org/pypi/linux-autoruns/${VERSION}/json"
-MAX_ATTEMPTS=15
-SLEEP_SECONDS=3
+MAX_ATTEMPTS=30
+SLEEP_SECONDS=5
 
 for ((i=1; i<=MAX_ATTEMPTS; i++)); do
     HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$PYPI_URL")
