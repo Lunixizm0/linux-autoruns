@@ -7,7 +7,7 @@ import subprocess
 from datetime import datetime, timezone
 
 from PySide6.QtCore import QSettings, Qt, QTimer
-from PySide6.QtGui import QKeySequence, QShortcut, QFontMetrics
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox,
                                 QFileDialog, QHBoxLayout, QHeaderView,
                                 QLabel, QLineEdit, QMainWindow, QMenu,
@@ -81,10 +81,10 @@ class MainWindow(QMainWindow):
         splitter = QSplitter(Qt.Horizontal)
         self._tree = QTreeWidget()
         self._tree.setHeaderLabel("Categories")
-        self._tree.setMinimumWidth(140)
         self._tree.setSortingEnabled(True)
         self._tree.sortByColumn(0, Qt.AscendingOrder)
         self._tree.itemClicked.connect(self._on_category_clicked)
+        self._tree.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         splitter.addWidget(self._tree)
         self._table = QTableView()
         self._table.setModel(self._proxy)
@@ -325,18 +325,14 @@ class MainWindow(QMainWindow):
         counts: dict[str, int] = {}
         for entry in self._all_entries:
             counts[entry.category] = counts.get(entry.category, 0) + 1
-        widest = root.text(0)
         for cat in sorted(counts):
             item = QTreeWidgetItem(self._tree)
             text = f"{cat} ({counts[cat]})"
             item.setText(0, text)
             item.setData(0, Qt.UserRole, counts[cat])
-            if len(text) > len(widest):
-                widest = text
-        fm = QFontMetrics(self._tree.font())
-        width = fm.horizontalAdvance(widest) + 40
-        width = max(140, min(width, 350))
-        self._tree.setFixedWidth(width)
+        self._tree.resizeColumnToContents(0)
+        col_w = self._tree.columnWidth(0)
+        self._tree.setFixedWidth(min(col_w + 16, 240))
 
     def _rebuild_tag_list(self):
         tags: set[str] = set()
