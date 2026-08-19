@@ -1,10 +1,22 @@
 [project]
 name = "linux-autoruns"
-version = "2.8.0"
+version = "2.9.0"
 description = "Windows Autoruns equivalent for Linux. Scans all autostart entry points."
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
+keywords = ["autostart", "autoruns", "linux", "security", "audit", "systemd", "cron"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: X11 Applications",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Security",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Utilities",
+]
 dependencies = [
     "pyside6>=6.11.2",
 ]
@@ -14,6 +26,11 @@ test = [
     "pytest>=8.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/Lunixizm0/linux-autoruns"
+Repository = "https://github.com/Lunixizm0/linux-autoruns"
+Issues = "https://github.com/Lunixizm0/linux-autoruns/issues"
+
 [project.scripts]
 linux-autoruns = "linux_autoruns:main"
 
@@ -21,5 +38,5 @@ linux-autoruns = "linux_autoruns:main"
 testpaths = ["tests"]
 
 [build-system]
-requires = ["uv_build>=0.12.5,<0.13.0"]
-build-backend = "uv_build"
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -16,30 +16,45 @@ Sysinternals Autoruns'un Linux alternatifi. Sisteminizdeki tüm otomatik başlam
 ## Kurulum
 
 ```bash
-# uv ile
-uv sync
-
-# bağımlılık ekle
-uv add PySide6
+pip install linux-autoruns
+# veya
+pipx install linux-autoruns
 ```
 
 ## Çalıştırma
 
 ```bash
-uv run linux-autoruns          # root değilse sudo dialogu açar
-sudo uv run linux-autoruns     # root ile doğrudan başlat
+linux-autoruns               # root değilse sudo dialogu açar
+sudo linux-autoruns          # root ile doğrudan başlat
 ```
 
-## Testler
+## Geliştirme
+
+Geliştirme ortamı için uv kullanılır:
 
 ```bash
-uv add --optional test pytest
+git clone https://github.com/Lunixizm0/linux-autoruns.git
+cd linux-autoruns
+uv sync                      # ortamı kur
+uv run linux-autoruns        # uygulamayı çalıştır
+```
+
+### Testler
+
+```bash
 uv run pytest tests/ -v
+```
+
+### Paketleme
+
+```bash
+uv run python -m build       # sdist + wheel oluşturur
 ```
 
 ## Teknoloji
 
 - Python 3.14
 - PySide6 6.11+ (Qt6 GUI)
-- uv (paket yönetimi)
+- hatchling (build backend)
+- uv (geliştirme ortamı)
 - pytest (test framework)
