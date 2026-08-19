@@ -98,7 +98,6 @@ class MainWindow(QMainWindow):
         self._table.setMouseTracking(True)
         header = self._table.horizontalHeader()
         header.setSectionsMovable(True)
-        header.setStretchLastSection(True)
         self._configure_table_columns()
         header.customContextMenuRequested.connect(self._on_header_context_menu)
         splitter.addWidget(self._table)
@@ -112,10 +111,8 @@ class MainWindow(QMainWindow):
 
     def _configure_table_columns(self):
         header = self._table.horizontalHeader()
-        stretch_cols = {1, 3, 5}
-        content_cols = {0, 2, 4, 6, 7, 8, 9}
         for col in range(header.count()):
-            if col in stretch_cols:
+            if col == 3:
                 header.setSectionResizeMode(col, QHeaderView.Stretch)
             else:
                 header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
