@@ -5,7 +5,7 @@ Sysinternals Autoruns'un Linux alternatifi. Sisteminizdeki tüm otomatik başlam
 ## Özellikler
 
 - 16 scanner: XDG Autostart, Systemd, SysVinit, Cron, Shell Profile, X11, Desktop Environment (GNOME, KDE, XFCE, Sway, Hyprland, Cinnamon, MATE, LXQt, COSMIC), Udev, D-Bus, Display Manager, Kernel (sysctl), Network Services (NGINX/Apache/SSH), PAM, tmpfiles.d, inetd/xinetd, GRUB
-- Karanlık tema
+- Grafik Arayüzü
 - Kategori bazlı filtreleme ve arama
 - Detay popup (sağ tık Inspect Details)
 - JSON ve CSV export

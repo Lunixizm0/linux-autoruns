@@ -4,43 +4,74 @@ import os
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (QApplication, QInputDialog, QLineEdit,
+                               QMessageBox)
 
 
 def _is_root() -> bool:
     return os.geteuid() == 0
 
 
-def _find_askpass() -> str | None:
-    wrapper = Path(__file__).parent / "askpass.sh"
-    if wrapper.exists() and os.access(str(wrapper), os.X_OK):
-        return str(wrapper)
-    for name in ["zenity", "kdialog", "ssh-askpass"]:
+def _find_askpass_helper() -> str | None:
+    helpers = [
+        "zenity", "kdialog", "ssh-askpass", "ksshaskpass",
+        "lxqt-sudo", "lxqt-openssh-askpass", "gnome-ssh-askpass",
+        "x11-askpass",
+    ]
+    for name in helpers:
         path = shutil.which(name)
         if path:
             return path
     return None
 
+def _prompt_password_qt() -> str | None:
+    password, ok = QInputDialog.getText(
+        None,
+        "Root Yetkisi",
+        "Şifrenizi girin:",
+        QLineEdit.EchoMode.Password,
+    )
+    if ok and password:
+        return password
+    return None
 
-def _try_relaunch_with_sudo() -> bool:
+def _try_relaunch() -> bool:
     exe = shutil.which("linux-autoruns")
     if not exe:
         exe = sys.executable
-    askpass = _find_askpass()
-    env = os.environ.copy()
-    if askpass:
-        env["SUDO_ASKPASS"] = askpass
-    env["DISPLAY"] = os.environ.get("DISPLAY", ":0")
-    env["XAUTHORITY"] = os.environ.get("XAUTHORITY", os.path.expanduser("~/.Xauthority"))
-    try:
-        proc = subprocess.Popen(["sudo", "-A", exe], env=env)
-        proc.wait()
-        return proc.returncode == 0
-    except FileNotFoundError:
-        return False
 
+    askpass = _find_askpass_helper()
+
+    if askpass:
+        env = os.environ.copy()
+        env["SUDO_ASKPASS"] = askpass
+        env["DISPLAY"] = os.environ.get("DISPLAY", ":0")
+        env["XAUTHORITY"] = os.environ.get(
+            "XAUTHORITY", os.path.expanduser("~/.Xauthority")
+        )
+        try:
+            proc = subprocess.Popen(["sudo", "-A", exe], env=env)
+            proc.wait()
+            return proc.returncode == 0
+        except FileNotFoundError:
+            return False
+
+    password = _prompt_password_qt()
+    if not password:
+        return False
+    try:
+        proc = subprocess.Popen(
+            ["sudo", "-S", exe],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        proc.communicate(input=(password + "\n").encode(), timeout=30)
+        return proc.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
 
 def main():
     app = QApplication(sys.argv)
@@ -60,7 +91,7 @@ def main():
         msg.setDefaultButton(btn_relaunch)
         msg.exec()
         if msg.clickedButton() == btn_relaunch:
-            if _try_relaunch_with_sudo():
+            if _try_relaunch():
                 sys.exit(0)
             msg2 = QMessageBox()
             msg2.setIcon(QMessageBox.Critical)
