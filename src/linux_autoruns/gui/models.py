@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 from PySide6.QtCore import (QAbstractTableModel, QModelIndex,
-                            QSortFilterProxyModel, Qt)
+                            QRegularExpression, QSortFilterProxyModel, Qt)
 from PySide6.QtGui import QColor
 
-from .theme import CATPPUCCIN_MOCHA
 from ..models import AutostartEntry
+from .theme import CATPPUCCIN_MOCHA
 
 
 class EntryTableModel(QAbstractTableModel):
     HEADERS = ["+", "Name", "Category", "User", "Description", "Modified"]
     _FIELD_MAP = {
-        0: "enabled",
         1: "name",
         2: "category",
         3: "user",
@@ -40,14 +39,12 @@ class EntryTableModel(QAbstractTableModel):
             field = self._FIELD_MAP.get(col)
             if field:
                 val = getattr(entry, field, None)
-                if val is None:
-                    return ""
-                return str(val)
+                return str(val) if val is not None else ""
             return ""
         if role == Qt.TextAlignmentRole:
             if col == 0:
-                return Qt.AlignCenter
-            return Qt.AlignLeft | Qt.AlignVCenter
+                return int(Qt.AlignCenter)
+            return int(Qt.AlignLeft | Qt.AlignVCenter)
         if role == Qt.ForegroundRole:
             if col == 0:
                 color = CATPPUCCIN_MOCHA["green"] if entry.enabled else CATPPUCCIN_MOCHA["red"]
@@ -97,6 +94,9 @@ class EntryFilterProxy(QSortFilterProxyModel):
         self._filter_enabled_only = enabled
         self.invalidateFilter()
 
+    def set_search_text(self, text: str):
+        self.setFilterRegularExpression(QRegularExpression(text, QRegularExpression.CaseInsensitiveOption))
+
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
         model = self.sourceModel()
         if not model:
@@ -109,9 +109,9 @@ class EntryFilterProxy(QSortFilterProxyModel):
             return False
         if self._filter_enabled_only and not entry.enabled:
             return False
-        filter_str = self.filterRegularExpression().pattern()
-        if filter_str:
+        pattern = self.filterRegularExpression().pattern()
+        if pattern:
             searchable = f"{entry.name} {entry.description or ''} {entry.command or ''} {entry.file_path}".lower()
-            if filter_str.lower() not in searchable:
+            if pattern.lower() not in searchable:
                 return False
         return True

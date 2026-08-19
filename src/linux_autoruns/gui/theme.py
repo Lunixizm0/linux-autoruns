@@ -28,7 +28,7 @@ QWidget {{
     color: {CATPPUCCIN_MOCHA['text']};
 }}
 
-QTreeWidget, QTableWidget {{
+QTreeWidget, QTableWidget, QTableView {{
     background-color: {CATPPUCCIN_MOCHA['mantle']};
     color: {CATPPUCCIN_MOCHA['text']};
     gridline-color: {CATPPUCCIN_MOCHA['surface0']};
@@ -39,11 +39,11 @@ QTreeWidget, QTableWidget {{
     selection-color: {CATPPUCCIN_MOCHA['text']};
 }}
 
-QTreeWidget::item, QTableWidget::item {{
+QTreeWidget::item, QTableWidget::item, QTableView::item {{
     padding: 4px 8px;
 }}
 
-QTreeWidget::item:selected, QTableWidget::item:selected {{
+QTreeWidget::item:selected, QTableWidget::item:selected, QTableView::item:selected {{
     background-color: {CATPPUCCIN_MOCHA['surface1']};
 }}
 

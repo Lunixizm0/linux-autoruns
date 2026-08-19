@@ -11,13 +11,13 @@ from PySide6.QtGui import QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog,
                                QHBoxLayout, QHeaderView, QLabel, QLineEdit,
                                QMainWindow, QMenu, QMessageBox, QPushButton,
-                               QSplitter, QStatusBar, QTableWidget,
-                               QTableWidgetItem, QTreeWidget, QTreeWidgetItem,
-                               QVBoxLayout, QWidget)
+                               QSplitter, QStatusBar, QTableView, QTreeWidget,
+                               QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from ..models import AutostartEntry
 from ..scanners import SCANNERS
 from .detail_dialog import DetailDialog
+from .models import EntryTableModel, EntryFilterProxy
 from .theme import CATPPUCCIN_MOCHA, DARK_THEME_QSS
 from .worker import ScanWorker
 
@@ -32,6 +32,9 @@ class MainWindow(QMainWindow):
         self._worker: ScanWorker | None = None
         self._edit_mode = False
         self._selected_category: str | None = None
+        self._model = EntryTableModel(self)
+        self._proxy = EntryFilterProxy(self)
+        self._proxy.setSourceModel(self._model)
         self._search_debounce = QTimer()
         self._search_debounce.setSingleShot(True)
         self._search_debounce.setInterval(150)
@@ -57,11 +60,10 @@ class MainWindow(QMainWindow):
         self._tree.sortByColumn(0, Qt.AscendingOrder)
         self._tree.itemClicked.connect(self._on_category_clicked)
         splitter.addWidget(self._tree)
-        self._table = QTableWidget()
-        self._table.setColumnCount(6)
-        self._table.setHorizontalHeaderLabels(["✓", "Name", "Category", "User", "Description", "Modified"])
-        self._table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._table.setSelectionMode(QTableWidget.SingleSelection)
+        self._table = QTableView()
+        self._table.setModel(self._proxy)
+        self._table.setSelectionBehavior(QTableView.SelectRows)
+        self._table.setSelectionMode(QTableView.SingleSelection)
         self._table.setAlternatingRowColors(True)
         self._table.setSortingEnabled(True)
         self._table.verticalHeader().setVisible(False)
@@ -126,8 +128,9 @@ class MainWindow(QMainWindow):
             return
         self._all_entries.clear()
         self._selected_category = None
-        self._table.setRowCount(0)
+        self._model.set_entries([])
         self._tree.clear()
+        self._add_tree_root()
         self._scan_btn.setText("Durdur")
         self._export_btn.setEnabled(False)
         self._worker = ScanWorker(SCANNERS, self)
@@ -137,15 +140,22 @@ class MainWindow(QMainWindow):
         self._worker.error.connect(self._on_error)
         self._worker.start()
 
+    def _add_tree_root(self):
+        item = QTreeWidgetItem(self._tree)
+        item.setText(0, "Tümü (0)")
+        item.setData(0, Qt.UserRole, 0)
+
     def _on_progress(self, category: str, percent: int):
         self._status_bar.showMessage(f"Taranıyor: {category} ({percent}%)")
 
     def _on_entry_found(self, entry: AutostartEntry):
-        self._add_table_row(entry)
+        self._all_entries.append(entry)
+        self._model.add_entry(entry)
         self._update_tree_count(entry.category)
 
     def _on_scan_complete(self, entries: list):
         self._all_entries = entries
+        self._model.set_entries(entries)
         self._scan_btn.setText("Scan")
         self._export_btn.setEnabled(True)
         total = len(entries)
@@ -154,32 +164,19 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage(f"Tamamlandı: {total} entry ({enabled} aktif) - {cats} kategori")
         has_user = any(e.user for e in entries)
         self._table.setColumnHidden(3, not has_user)
+        self._update_tree_root_count()
 
     def _on_error(self, msg: str):
         self._status_bar.showMessage(f"Hata: {msg[:100]}")
 
-    def _add_table_row(self, entry: AutostartEntry):
-        row = self._table.rowCount()
-        self._table.insertRow(row)
-        status = "✓" if entry.enabled else "✗"
-        status_item = QTableWidgetItem(status)
-        status_item.setTextAlignment(Qt.AlignCenter)
-        if entry.enabled:
-            status_item.setForeground(QColor(CATPPUCCIN_MOCHA["green"]))
-        else:
-            status_item.setForeground(QColor(CATPPUCCIN_MOCHA["red"]))
-        self._table.setItem(row, 0, status_item)
-        name_item = QTableWidgetItem(entry.name)
-        name_item.setForeground(QColor(CATPPUCCIN_MOCHA["blue"]))
-        self._table.setItem(row, 1, name_item)
-        self._table.setItem(row, 2, QTableWidgetItem(entry.category))
-        self._table.setItem(row, 3, QTableWidgetItem(entry.user or ""))
-        self._table.setItem(row, 4, QTableWidgetItem(entry.description or ""))
-        self._table.setItem(row, 5, QTableWidgetItem(entry.last_modified or ""))
-        self._table.item(row, 0).setData(Qt.UserRole, entry)
+    def _update_tree_root_count(self):
+        if self._tree.topLevelItemCount() > 0:
+            item = self._tree.topLevelItem(0)
+            item.setText(0, f"Tümü ({len(self._all_entries)})")
+            item.setData(0, Qt.UserRole, len(self._all_entries))
 
     def _update_tree_count(self, category: str):
-        for i in range(self._tree.topLevelItemCount()):
+        for i in range(1, self._tree.topLevelItemCount()):
             item = self._tree.topLevelItem(i)
             if item.text(0).startswith(category):
                 count = item.data(0, Qt.UserRole) or 0
@@ -190,34 +187,25 @@ class MainWindow(QMainWindow):
         item = QTreeWidgetItem(self._tree)
         item.setText(0, f"{category} (1)")
         item.setData(0, Qt.UserRole, 1)
+        self._update_tree_root_count()
 
     def _on_category_clicked(self, item: QTreeWidgetItem, column: int):
         text = item.text(0)
-        category = text.rsplit(" (", 1)[0] if " (" in text else text
-        if self._selected_category == category:
+        if text.startswith("Tümü"):
             self._selected_category = None
         else:
-            self._selected_category = category
+            category = text.rsplit(" (", 1)[0] if " (" in text else text
+            if self._selected_category == category:
+                self._selected_category = None
+            else:
+                self._selected_category = category
         self._apply_filters()
 
     def _apply_filters(self):
-        search = self._search.text().lower()
-        enabled_only = self._enabled_only.isChecked()
-        category = self._selected_category
-        self._table.setRowCount(0)
-        has_user = False
-        for entry in self._all_entries:
-            if category and entry.category != category:
-                continue
-            if enabled_only and not entry.enabled:
-                continue
-            if search:
-                searchable = f"{entry.name} {entry.description or ''} {entry.command or ''} {entry.file_path}".lower()
-                if search not in searchable:
-                    continue
-            self._add_table_row(entry)
-            if entry.user:
-                has_user = True
+        self._proxy.set_category_filter(self._selected_category)
+        self._proxy.set_enabled_only(self._enabled_only.isChecked())
+        self._proxy.set_search_text(self._search.text())
+        has_user = any(e.user for e in self._all_entries)
         self._table.setColumnHidden(3, not has_user)
 
     def _on_search(self, text: str):
@@ -227,13 +215,11 @@ class MainWindow(QMainWindow):
         self._apply_filters()
 
     def _on_context_menu(self, pos):
-        row = self._table.rowAt(pos.y())
-        if row < 0:
+        index = self._table.indexAt(pos)
+        if not index.isValid():
             return
-        item = self._table.item(row, 0)
-        if not item:
-            return
-        entry: AutostartEntry | None = item.data(Qt.UserRole)
+        source_index = self._proxy.mapToSource(index)
+        entry: AutostartEntry | None = self._model.entry_at(source_index.row())
         if not entry:
             return
         menu = QMenu(self)
@@ -262,12 +248,10 @@ class MainWindow(QMainWindow):
                 subprocess.Popen(["xdg-open", dirpath])
 
     def _on_inspect(self, index):
-        row = index.row()
-        item = self._table.item(row, 0)
-        if item:
-            entry: AutostartEntry | None = item.data(Qt.UserRole)
-            if entry:
-                self._open_detail(entry)
+        source_index = self._proxy.mapToSource(index)
+        entry: AutostartEntry | None = self._model.entry_at(source_index.row())
+        if entry:
+            self._open_detail(entry)
 
     def _open_detail(self, entry: AutostartEntry):
         dialog = DetailDialog(entry, self)
