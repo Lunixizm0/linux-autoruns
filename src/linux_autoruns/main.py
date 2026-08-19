@@ -12,27 +12,31 @@ def _is_root() -> bool:
     return os.geteuid() == 0
 
 
+def _find_askpass() -> str | None:
+    for name in ["zenity", "kdialog", "ssh-askpass", "/usr/libexec/openssh/ssh-askpass"]:
+        path = shutil.which(name) if not name.startswith("/") else name
+        if path and os.path.isfile(path):
+            return path
+    return None
+
+
 def _try_relaunch_with_sudo() -> bool:
     exe = shutil.which("linux-autoruns")
     if not exe:
-        try:
-            import importlib.resources
-            exe = sys.executable
-        except Exception:
-            exe = sys.executable
-    for tool in ["pkexec", "sudo -A"]:
-        try:
-            cmd = tool.split() + [exe]
-            proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            proc.wait()
-            return True
-        except FileNotFoundError:
-            continue
-    return False
+        exe = sys.executable
+    askpass = _find_askpass()
+    env = os.environ.copy()
+    if askpass:
+        env["SUDO_ASKPASS"] = askpass
+    env["DISPLAY"] = os.environ.get("DISPLAY", ":0")
+    env["XAUTHORITY"] = os.environ.get("XAUTHORITY", os.path.expanduser("~/.Xauthority"))
+    try:
+        cmd = ["sudo", "-A", exe]
+        proc = subprocess.Popen(cmd, env=env)
+        proc.wait()
+        return proc.returncode == 0
+    except FileNotFoundError:
+        return False
 
 
 def main():
@@ -48,13 +52,19 @@ def main():
             "Root olmadan bazı dosyalar erişilemez.\n\n"
             "Root ile yeniden başlatılsın mı?"
         )
-        btn_relaunch = msg.addButton("Evet (pkexec/sudo)", QMessageBox.AcceptRole)
+        btn_relaunch = msg.addButton("Evet (sudo)", QMessageBox.AcceptRole)
         btn_continue = msg.addButton("Hayır (devam et)", QMessageBox.RejectRole)
         msg.setDefaultButton(btn_relaunch)
         msg.exec()
         if msg.clickedButton() == btn_relaunch:
-            _try_relaunch_with_sudo()
-            sys.exit(0)
+            if _try_relaunch_with_sudo():
+                sys.exit(0)
+            msg2 = QMessageBox()
+            msg2.setIcon(QMessageBox.Critical)
+            msg2.setWindowTitle("Hata")
+            msg2.setText("sudo ile yeniden başlatılamadı.")
+            msg2.setInformativeText("Terminalden çalıştırın:\n\n  sudo linux-autoruns")
+            msg2.exec()
     from .gui.main_window import MainWindow
     window = MainWindow()
     window.show()
