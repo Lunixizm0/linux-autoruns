@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import os
 import re
 
-from PySide6.QtCore import (QAbstractTableModel, QModelIndex, QTimer,
-                            QSortFilterProxyModel, Qt)
-from PySide6.QtGui import QColor, QTextCharFormat, QTextDocument
+from PySide6.QtCore import (QAbstractTableModel, QModelIndex, Qt,
+                            QSortFilterProxyModel)
+from PySide6.QtGui import QColor, QFont
 
 from ..models import AutostartEntry
 from .theme import CATPPUCCIN_MOCHA
@@ -15,20 +16,37 @@ _VALID_KEYS = {
 }
 
 
+def _format_size(size_bytes: int | None) -> str:
+    if size_bytes is None:
+        return ""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    if size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    return f"{size_bytes / (1024 * 1024):.1f} MB"
+
+
 class EntryTableModel(QAbstractTableModel):
-    HEADERS = ["+", "Name", "Category", "User", "Description", "Modified"]
+    HEADERS = [
+        "+", "Name", "Category", "User", "Description",
+        "Command", "Path", "Scope", "Perms", "Size", "Modified", "Owner",
+    ]
     _FIELD_MAP = {
         1: "name",
         2: "category",
         3: "user",
         4: "description",
-        5: "last_modified",
+        5: "command",
+        6: "file_path",
+        7: "scope",
+        8: "file_permissions",
+        10: "last_modified",
+        11: "owner",
     }
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._entries: list[AutostartEntry] = []
-        self._search_pattern: str = ""
 
     def rowCount(self, parent=QModelIndex()) -> int:
         return len(self._entries)
@@ -41,26 +59,66 @@ class EntryTableModel(QAbstractTableModel):
             return None
         entry = self._entries[index.row()]
         col = index.column()
+
         if role == Qt.DisplayRole:
             if col == 0:
                 return "+" if entry.enabled else "-"
+            if col == 9:
+                return _format_size(entry.file_size)
             field = self._FIELD_MAP.get(col)
             if field:
                 val = getattr(entry, field, None)
-                return str(val) if val is not None else ""
+                if val is not None:
+                    s = str(val)
+                    if col in (5, 6) and len(s) > 50:
+                        return s[:47] + "..."
+                    return s
+                return ""
             return ""
+
         if role == Qt.TextAlignmentRole:
             if col == 0:
                 return int(Qt.AlignCenter)
+            if col in (9,):
+                return int(Qt.AlignRight | Qt.AlignVCenter)
             return int(Qt.AlignLeft | Qt.AlignVCenter)
+
         if role == Qt.ForegroundRole:
             if col == 0:
                 color = CATPPUCCIN_MOCHA["green"] if entry.enabled else CATPPUCCIN_MOCHA["red"]
                 return QColor(color)
             if col == 1:
                 return QColor(CATPPUCCIN_MOCHA["blue"])
+
+        if role == Qt.BackgroundRole:
+            if col == 0:
+                return None
+            if entry.file_path and not os.path.exists(entry.file_path):
+                return QColor(249, 226, 175, 35)
+            return None
+
+        if role == Qt.ToolTipRole:
+            if col in (5, 6):
+                parts = []
+                if entry.command:
+                    parts.append(f"Command: {entry.command}")
+                if entry.exec_args:
+                    parts.append(f"Args: {' '.join(entry.exec_args)}")
+                if col == 6:
+                    parts.append(f"Path: {entry.file_path}")
+                return "\n".join(parts) if parts else None
+            return None
+
+        if role == Qt.FontRole:
+            if col == 0:
+                font = QFont()
+                font.setBold(True)
+                font.setPointSize(14)
+                return font
+
         if role == Qt.UserRole:
             return entry
+
         return None
 
     def headerData(self, section: int, orientation, role: int = Qt.DisplayRole):
@@ -86,9 +144,6 @@ class EntryTableModel(QAbstractTableModel):
 
     def get_all_entries(self) -> list[AutostartEntry]:
         return list(self._entries)
-
-    def set_search_pattern(self, pattern: str):
-        self._search_pattern = pattern
 
 
 def _parse_search_query(query: str) -> list[tuple[str | None, str]]:
@@ -117,23 +172,23 @@ class EntryFilterProxy(QSortFilterProxyModel):
 
     def set_category_filter(self, category: str | None):
         self._filter_category = category
-        self.invalidateFilter()
+        self.invalidate()
 
     def set_enabled_only(self, enabled: bool):
         self._filter_enabled_only = enabled
-        self.invalidateFilter()
+        self.invalidate()
 
     def set_scope_filter(self, scope: str | None):
         self._filter_scope = scope
-        self.invalidateFilter()
+        self.invalidate()
 
     def set_tag_filter(self, tag: str | None):
         self._filter_tag = tag
-        self.invalidateFilter()
+        self.invalidate()
 
     def set_search_text(self, text: str):
         self._filter_text = text
-        self.invalidateFilter()
+        self.invalidate()
 
     def filterAcceptsRow(self, source_row: int, source_parent: QModelIndex) -> bool:
         model = self.sourceModel()

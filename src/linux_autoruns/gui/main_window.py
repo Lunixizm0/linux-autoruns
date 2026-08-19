@@ -7,7 +7,7 @@ import subprocess
 from datetime import datetime, timezone
 
 from PySide6.QtCore import QSettings, Qt, QTimer
-from PySide6.QtGui import QColor, QKeySequence, QShortcut
+from PySide6.QtGui import QKeySequence, QShortcut, QFontMetrics
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox,
                                 QFileDialog, QHBoxLayout, QHeaderView,
                                 QLabel, QLineEdit, QMainWindow, QMenu,
@@ -59,6 +59,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         self._settings.setValue("geometry", self.saveGeometry())
+        self._save_column_widths()
         self._save_search_history()
         super().closeEvent(event)
 
@@ -80,8 +81,7 @@ class MainWindow(QMainWindow):
         splitter = QSplitter(Qt.Horizontal)
         self._tree = QTreeWidget()
         self._tree.setHeaderLabel("Categories")
-        self._tree.setMinimumWidth(200)
-        self._tree.setMaximumWidth(350)
+        self._tree.setMinimumWidth(140)
         self._tree.setSortingEnabled(True)
         self._tree.sortByColumn(0, Qt.AscendingOrder)
         self._tree.itemClicked.connect(self._on_category_clicked)
@@ -96,13 +96,12 @@ class MainWindow(QMainWindow):
         self._table.setContextMenuPolicy(Qt.CustomContextMenu)
         self._table.customContextMenuRequested.connect(self._on_context_menu)
         self._table.doubleClicked.connect(self._on_inspect)
+        self._table.setMouseTracking(True)
         header = self._table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.Stretch)
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        header.setSectionsMovable(True)
+        header.setStretchLastSection(True)
+        self._configure_table_columns()
+        header.customContextMenuRequested.connect(self._on_header_context_menu)
         splitter.addWidget(self._table)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
@@ -112,6 +111,48 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage("Scan not started")
         quit_shortcut = QShortcut(QKeySequence("Ctrl+C"), self)
         quit_shortcut.activated.connect(self.close)
+
+    def _configure_table_columns(self):
+        header = self._table.horizontalHeader()
+        stretch_cols = {1, 4, 6}
+        content_cols = {0, 2, 3, 7, 8, 9, 10, 11}
+        for col in range(header.count()):
+            if col in stretch_cols:
+                header.setSectionResizeMode(col, QHeaderView.Stretch)
+            else:
+                header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
+        saved_widths = self._settings.value("column_widths")
+        if saved_widths:
+            for col, width in saved_widths.items():
+                try:
+                    header.resizeSection(int(col), int(width))
+                except (ValueError, TypeError):
+                    pass
+
+    def _save_column_widths(self):
+        header = self._table.horizontalHeader()
+        widths = {}
+        for col in range(header.count()):
+            if header.sectionResizeMode(col) == QHeaderView.Interactive:
+                widths[col] = header.sectionSize(col)
+        self._settings.setValue("column_widths", widths)
+
+    def _on_header_context_menu(self, pos):
+        header = self._table.horizontalHeader()
+        menu = QMenu(self)
+        from .models import EntryTableModel
+        headers = EntryTableModel.HEADERS
+        for col in range(header.count()):
+            action = menu.addAction(headers[col])
+            action.setCheckable(True)
+            action.setChecked(not header.isSectionHidden(col))
+            action.triggered.connect(
+                lambda checked, c=col: self._toggle_column(c, checked)
+            )
+        menu.exec(header.mapToGlobal(pos))
+
+    def _toggle_column(self, col: int, visible: bool):
+        self._table.setColumnHidden(col, not visible)
 
     def _create_toolbar(self) -> QHBoxLayout:
         toolbar = QHBoxLayout()
@@ -236,7 +277,7 @@ class MainWindow(QMainWindow):
         self._progress_bar.setValue(0)
         self._worker = ScanWorker(SCANNERS, self)
         self._worker.progress.connect(self._on_progress)
-        self._worker.entry_found.connect(self._on_entry_found)
+        self._worker.entries_batch.connect(self._on_entries_batch)
         self._worker.scan_complete.connect(self._on_scan_complete)
         self._worker.error.connect(self._on_error)
         self._worker.start()
@@ -245,9 +286,10 @@ class MainWindow(QMainWindow):
         self._progress_bar.setValue(percent)
         self._status_bar.showMessage(f"Scanning: {category} ({percent}%)")
 
-    def _on_entry_found(self, entry: AutostartEntry):
-        self._all_entries.append(entry)
-        self._model.add_entry(entry)
+    def _on_entries_batch(self, entries: list):
+        self._all_entries.extend(entries)
+        for entry in entries:
+            self._model.add_entry(entry)
 
     def _on_scan_complete(self, entries: list):
         self._all_entries = entries
@@ -268,6 +310,10 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage(msg)
         has_user = any(e.user for e in entries)
         self._table.setColumnHidden(3, not has_user)
+        scopes = {e.scope for e in entries}
+        self._table.setColumnHidden(7, len(scopes) <= 1)
+        owners = {e.owner for e in entries if e.owner}
+        self._table.setColumnHidden(11, len(owners) <= 1)
 
     def _on_error(self, msg: str):
         self._error_count += 1
@@ -281,10 +327,19 @@ class MainWindow(QMainWindow):
         counts: dict[str, int] = {}
         for entry in self._all_entries:
             counts[entry.category] = counts.get(entry.category, 0) + 1
+        widest = root.text(0)
         for cat in sorted(counts):
             item = QTreeWidgetItem(self._tree)
-            item.setText(0, f"{cat} ({counts[cat]})")
+            text = f"{cat} ({counts[cat]})"
+            item.setText(0, text)
             item.setData(0, Qt.UserRole, counts[cat])
+            if len(text) > len(widest):
+                widest = text
+        fm = QFontMetrics(self._tree.font())
+        padding = self._tree.verticalHeader().width() + 40
+        width = fm.horizontalAdvance(widest) + padding
+        width = max(140, min(width, 350))
+        self._tree.setFixedWidth(width)
 
     def _rebuild_tag_list(self):
         tags: set[str] = set()
@@ -480,8 +535,17 @@ class MainWindow(QMainWindow):
             with open(path, "w", encoding="utf-8", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow(["Enabled", "Name", "Category", "User", "Description",
-                                 "Command", "Path", "Modified", "Tags"])
+                                 "Command", "Path", "Scope", "Permissions", "Size",
+                                 "Modified", "Owner", "Tags"])
                 for entry in self._all_entries:
+                    size_str = ""
+                    if entry.file_size is not None:
+                        if entry.file_size < 1024:
+                            size_str = f"{entry.file_size} B"
+                        elif entry.file_size < 1024 * 1024:
+                            size_str = f"{entry.file_size / 1024:.1f} KB"
+                        else:
+                            size_str = f"{entry.file_size / (1024 * 1024):.1f} MB"
                     writer.writerow([
                         "+" if entry.enabled else "-",
                         entry.name,
@@ -490,7 +554,11 @@ class MainWindow(QMainWindow):
                         entry.description or "",
                         entry.command or "",
                         entry.file_path,
+                        entry.scope,
+                        entry.file_permissions or "",
+                        size_str,
                         entry.last_modified or "",
+                        entry.owner or "",
                         ",".join(entry.tags),
                     ])
             self._status_bar.showMessage(f"Exported: {path}")

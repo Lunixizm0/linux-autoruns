@@ -7,10 +7,12 @@ from PySide6.QtCore import QThread, Signal
 from ..models import AutostartEntry
 from ..scanner import BaseScanner
 
+_BATCH_SIZE = 32
+
 
 class ScanWorker(QThread):
     progress = Signal(str, int)
-    entry_found = Signal(object)
+    entries_batch = Signal(list)
     scan_complete = Signal(list)
     error = Signal(str)
 
@@ -32,11 +34,17 @@ class ScanWorker(QThread):
             self.progress.emit(scanner.name, int(i / total * 100))
             try:
                 entries = scanner.scan()
+                all_entries.extend(entries)
+                batch = []
                 for entry in entries:
                     if self._cancelled:
                         break
-                    all_entries.append(entry)
-                    self.entry_found.emit(entry)
+                    batch.append(entry)
+                    if len(batch) >= _BATCH_SIZE:
+                        self.entries_batch.emit(batch)
+                        batch = []
+                if batch:
+                    self.entries_batch.emit(batch)
             except Exception:
                 self.error.emit(f"{scanner.name}: {traceback.format_exc()}")
         self.progress.emit("Completed", 100)

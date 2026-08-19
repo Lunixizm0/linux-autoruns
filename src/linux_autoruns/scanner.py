@@ -10,8 +10,7 @@ from pathlib import Path
 
 from .models import AutostartEntry
 
-MAX_FILE_SIZE = 1 * 1024 * 1024  # 1MB
-
+MAX_FILE_SIZE = 1 * 1024 * 1024 * 10  # 10MB
 
 class BaseScanner(ABC):
     @property
