@@ -77,12 +77,14 @@ class XDGScanner(BaseScanner):
         categories = sec.get("Categories", None)
         if categories:
             details["categories"] = categories
+        is_user = "~/.config/autostart" in path
         return self._make_entry(
             file_path=path,
             name=Path(path).stem,
             enabled=not hidden,
             command=command,
             exec_args=exec_args,
+            user=os.environ.get("USER") if is_user else None,
             description=sec.get("Name", None),
             comment=sec.get("Comment", None),
             last_modified=self._get_mtime_iso(path),

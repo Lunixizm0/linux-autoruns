@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QApplication, QDialog, QGroupBox, QLabel,
                                QPlainTextEdit, QPushButton, QScrollArea,
                                QVBoxLayout, QWidget)
 
-from ..gui.theme import CATPPUCCIN_MOCHA
+from ..gui.theme import CATPPUCCIN_MOCHA, DARK_THEME_QSS
 from ..models import AutostartEntry
 
 
@@ -16,6 +16,7 @@ class DetailDialog(QDialog):
         self.setWindowTitle(f"Entry Detail: {entry.name}")
         self.setMinimumSize(550, 500)
         self.setMaximumSize(700, 900)
+        self.setStyleSheet(DARK_THEME_QSS)
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         container = QWidget()

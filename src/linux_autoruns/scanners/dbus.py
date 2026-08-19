@@ -70,6 +70,7 @@ class DbusScanner(BaseScanner):
             name=service_name or Path(path).stem,
             enabled=True,
             command=exec_start,
+            user=os.environ.get("USER") if scope == "user" else None,
             scope=scope,
             description="D-Bus service",
             last_modified=self._get_mtime_iso(path),

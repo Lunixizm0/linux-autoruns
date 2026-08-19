@@ -140,6 +140,7 @@ class SystemdScanner(BaseScanner):
             command=command,
             exec_args=exec_args,
             description=description,
+            user=details.get("service_user") or (os.environ.get("USER") if scope == "user" else None),
             scope=scope,
             last_modified=self._get_mtime_iso(path),
             file_size=info["size"],

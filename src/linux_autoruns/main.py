@@ -11,7 +11,7 @@ from .gui.main_window import MainWindow
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Linux Autoruns")
-    app.setApplicationVersion("0.1.0")
+    app.setApplicationVersion("1.0.0")
     if os.geteuid() != 0:
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)

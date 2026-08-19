@@ -74,6 +74,7 @@ class ShellScanner(BaseScanner):
                     sourced.append(src)
         info = self._get_file_info(path)
         scope = "system" if path.startswith("/etc/") else "user"
+        user = os.environ.get("USER") if scope == "user" else None
         details: dict[str, str | int | bool | list[str]] = {"shell": shell}
         if sourced:
             details["sourced_files"] = sourced
@@ -82,6 +83,7 @@ class ShellScanner(BaseScanner):
             name=Path(path).name,
             enabled=True,
             command=content.splitlines()[0] if content and content.startswith("#!") else None,
+            user=user,
             scope=scope,
             description=f"{shell} profile script",
             last_modified=self._get_mtime_iso(path),

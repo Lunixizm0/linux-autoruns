@@ -19,6 +19,10 @@ class BaseScanner(ABC):
     @abstractmethod
     def description(self) -> str: ...
 
+    @property
+    def _current_user(self) -> str | None:
+        return os.environ.get("USER") or os.environ.get("LOGNAME")
+
     @abstractmethod
     def scan(self) -> list[AutostartEntry]: ...
 

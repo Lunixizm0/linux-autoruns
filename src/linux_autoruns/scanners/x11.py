@@ -65,6 +65,7 @@ class X11Scanner(BaseScanner):
             file_path=path,
             name=Path(path).name,
             enabled=True,
+            user=self._current_user if scope == "user" else None,
             scope=scope,
             description=f"X11 session script",
             last_modified=self._get_mtime_iso(path),

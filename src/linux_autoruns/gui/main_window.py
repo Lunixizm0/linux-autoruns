@@ -29,6 +29,7 @@ class MainWindow(QMainWindow):
         self._worker: ScanWorker | None = None
         self._setup_ui()
         self._apply_theme()
+        self._start_scan()
 
     def _setup_ui(self):
         central = QWidget()
@@ -131,7 +132,9 @@ class MainWindow(QMainWindow):
         total = len(entries)
         enabled = sum(1 for e in entries if e.enabled)
         cats = len(set(e.category for e in entries))
-        self._status_bar.showMessage(f"Tamamlandı: {total} entry ({enabled} aktif) — {cats} kategori")
+        self._status_bar.showMessage(f"Tamamlandı: {total} entry ({enabled} aktif) - {cats} kategori")
+        has_user = any(e.user for e in entries)
+        self._table.setColumnHidden(3, not has_user)
 
     def _on_error(self, msg: str):
         self._status_bar.showMessage(f"Hata: {msg[:100]}")
@@ -176,19 +179,27 @@ class MainWindow(QMainWindow):
 
     def _filter_by_category(self, category: str | None):
         self._table.setRowCount(0)
+        has_user = False
         for entry in self._all_entries:
             if category and entry.category != category:
                 continue
             self._add_table_row(entry)
+            if entry.user:
+                has_user = True
+        self._table.setColumnHidden(3, not has_user)
 
     def _on_search(self, text: str):
         self._table.setRowCount(0)
+        has_user = False
         for entry in self._all_entries:
             if self._enabled_only.isChecked() and not entry.enabled:
                 continue
             searchable = f"{entry.name} {entry.description or ''} {entry.command or ''} {entry.file_path}".lower()
             if text.lower() in searchable:
                 self._add_table_row(entry)
+                if entry.user:
+                    has_user = True
+        self._table.setColumnHidden(3, not has_user)
 
     def _on_filter_changed(self):
         search = self._search.text()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import configparser
+import json
 import os
 import re
 from pathlib import Path
@@ -37,6 +38,7 @@ class DesktopEnvScanner(BaseScanner):
                         file_path=str(f),
                         name=f.name,
                         enabled=True,
+                        user=self._current_user,
                         scope="user",
                         description="GNOME session config",
                         last_modified=self._get_mtime_iso(str(f)),
@@ -55,7 +57,6 @@ class DesktopEnvScanner(BaseScanner):
                     if metadata.exists():
                         content = self._read_file(str(metadata))
                         if content:
-                            import json
                             try:
                                 meta = json.loads(content)
                                 ext_name = meta.get("name", d.name)
@@ -66,6 +67,7 @@ class DesktopEnvScanner(BaseScanner):
                         file_path=str(d),
                         name=ext_name,
                         enabled=True,
+                        user=self._current_user,
                         scope="user",
                         description="GNOME shell extension",
                         tags=["gnome", "extension"],
@@ -84,6 +86,7 @@ class DesktopEnvScanner(BaseScanner):
                         file_path=str(f),
                         name=f.name,
                         enabled=True,
+                        user=self._current_user,
                         scope="user",
                         description="KDE4 autostart",
                         last_modified=self._get_mtime_iso(str(f)),
@@ -102,6 +105,7 @@ class DesktopEnvScanner(BaseScanner):
                         file_path=str(f),
                         name=f.name,
                         enabled=True,
+                        user=self._current_user,
                         scope="user",
                         description="Plasma workspace environment",
                         last_modified=self._get_mtime_iso(str(f)),
@@ -125,6 +129,7 @@ class DesktopEnvScanner(BaseScanner):
                     file_path=kwinrc,
                     name="kwinrc",
                     enabled=True,
+                    user=self._current_user,
                     scope="user",
                     description="KWin window manager config",
                     last_modified=self._get_mtime_iso(kwinrc),
@@ -147,6 +152,7 @@ class DesktopEnvScanner(BaseScanner):
                         file_path=str(f),
                         name=f.stem,
                         enabled=True,
+                        user=self._current_user,
                         scope="user",
                         description="XFCE session config",
                         last_modified=self._get_mtime_iso(str(f)),
@@ -182,6 +188,7 @@ class DesktopEnvScanner(BaseScanner):
                 file_path=path,
                 name=f"{de} config",
                 enabled=True,
+                user=self._current_user,
                 scope="user",
                 description=f"{de} wayland compositor config",
                 last_modified=self._get_mtime_iso(path),
@@ -200,6 +207,7 @@ class DesktopEnvScanner(BaseScanner):
                         file_path=str(f),
                         name=f.name,
                         enabled=True,
+                        user=self._current_user,
                         scope="user",
                         description="nwg-shell autorun",
                         last_modified=self._get_mtime_iso(str(f)),
