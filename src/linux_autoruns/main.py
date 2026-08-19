@@ -25,23 +25,57 @@ def _prompt_password_qt() -> str | None:
     return None
 
 
-def _try_relaunch() -> bool:
+def _find_executable() -> str:
     exe = shutil.which("linux-autoruns")
-    if not exe:
-        exe = sys.executable
+    if exe:
+        return exe
+    if hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix):
+        return sys.executable
+    return sys.executable
+
+
+def _try_relaunch() -> bool:
+    exe = _find_executable()
 
     password = _prompt_password_qt()
     if not password:
         return False
+
+    sudo_exe = shutil.which("sudo")
+    if not sudo_exe:
+        return False
+
+    env = os.environ.copy()
+    home = os.path.expanduser("~")
+    paths = env.get("PATH", "")
+    for extra in [".local/bin", ".local/pipx/venvs/linux-autoruns/bin"]:
+        p = os.path.join(home, extra)
+        if p not in paths:
+            paths = f"{p}:{paths}"
+    env["PATH"] = paths
+
     try:
         proc = subprocess.Popen(
-            ["sudo", "-S", exe],
+            [sudo_exe, "-S", exe],
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            env=env,
         )
-        proc.communicate(input=(password + "\n").encode(), timeout=30)
-        return proc.returncode == 0
+        _, stderr = proc.communicate(input=(password + "\n").encode(), timeout=30)
+        if proc.returncode == 0:
+            return True
+        if b"command not found" in stderr.lower():
+            proc2 = subprocess.Popen(
+                [sudo_exe, "-S", sys.executable, "-m", "linux_autoruns"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                env=env,
+            )
+            proc2.communicate(input=(password + "\n").encode(), timeout=30)
+            return proc2.returncode == 0
+        return False
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
 
