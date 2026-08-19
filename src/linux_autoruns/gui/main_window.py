@@ -62,6 +62,11 @@ class MainWindow(QMainWindow):
         self._save_search_history()
         super().closeEvent(event)
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        if not self._settings.value("column_widths"):
+            self._apply_percentage_widths()
+
     def _setup_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
@@ -109,8 +114,11 @@ class MainWindow(QMainWindow):
         quit_shortcut = QShortcut(QKeySequence("Ctrl+C"), self)
         quit_shortcut.activated.connect(self.close)
 
+    _COL_RATIOS = [0.03, 0.15, 0.10, 0.18, 0.18, 0.17, 0.05, 0.06, 0.04, 0.04]
+
     def _configure_table_columns(self):
         header = self._table.horizontalHeader()
+        header.blockSignals(True)
         for col in range(header.count()):
             header.setSectionResizeMode(col, QHeaderView.Interactive)
         saved_widths = self._settings.value("column_widths")
@@ -121,9 +129,35 @@ class MainWindow(QMainWindow):
                 except (ValueError, TypeError):
                     pass
         else:
-            defaults = {0: 28, 1: 160, 2: 120, 3: 180, 4: 180, 5: 200, 6: 55, 7: 70, 8: 55, 9: 70}
-            for col, w in defaults.items():
-                header.resizeSection(col, w)
+            self._apply_percentage_widths()
+        header.blockSignals(False)
+        header.sectionResized.connect(self._on_column_resized)
+
+    def _apply_percentage_widths(self):
+        header = self._table.horizontalHeader()
+        vw = self._table.viewport().width()
+        if vw <= 0:
+            vw = 1000
+        header.blockSignals(True)
+        for col in range(header.count()):
+            header.resizeSection(col, max(int(vw * self._COL_RATIOS[col]), 20))
+        header.blockSignals(False)
+
+    def _on_column_resized(self, logical_index, old_size, new_size):
+        delta = new_size - old_size
+        if delta == 0:
+            return
+        header = self._table.horizontalHeader()
+        others = [c for c in range(header.count()) if c != logical_index]
+        other_total = sum(header.sectionSize(c) for c in others)
+        if other_total <= 0:
+            return
+        header.blockSignals(True)
+        for c in others:
+            ratio = header.sectionSize(c) / other_total
+            new_w = max(int(header.sectionSize(c) - delta * ratio), 20)
+            header.resizeSection(c, new_w)
+        header.blockSignals(False)
 
     def _save_column_widths(self):
         header = self._table.horizontalHeader()
