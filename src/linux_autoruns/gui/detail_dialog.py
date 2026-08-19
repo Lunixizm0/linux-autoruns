@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QApplication, QDialog, QGroupBox, QLabel,
                                QPlainTextEdit, QPushButton, QScrollArea,
                                QVBoxLayout, QWidget)
 
-from ..gui.theme import CATPPUCCIN_MOCHA, DARK_THEME_QSS
+from ..gui.theme import DARK_THEME_QSS
 from ..models import AutostartEntry
 
 
@@ -20,6 +20,7 @@ class DetailDialog(QDialog):
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         container = QWidget()
+        container.setStyleSheet("background-color: #1e1e2e;")
         layout = QVBoxLayout(container)
         layout.setSpacing(8)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -42,22 +43,6 @@ class DetailDialog(QDialog):
             content = self._read_raw_content(entry.file_path)
             if content:
                 group = QGroupBox("Ham İçerik")
-                group.setStyleSheet(f"""
-                    QGroupBox {{
-                        color: {CATPPUCCIN_MOCHA['text']};
-                        border: 1px solid {CATPPUCCIN_MOCHA['surface0']};
-                        border-radius: 4px;
-                        margin-top: 8px;
-                        padding-top: 12px;
-                        font-weight: bold;
-                    }}
-                    QGroupBox::title {{
-                        subcontrol-origin: margin;
-                        subcontrol-position: top left;
-                        left: 8px;
-                        padding: 0 4px;
-                    }}
-                """)
                 vbox = QVBoxLayout()
                 text_edit = QPlainTextEdit()
                 text_edit.setPlainText(content)
@@ -80,6 +65,7 @@ class DetailDialog(QDialog):
                 layout.addWidget(group)
         layout.addStretch()
         scroll.setWidget(container)
+        scroll.setStyleSheet("background-color: #1e1e2e;")
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(scroll)
@@ -89,7 +75,7 @@ class DetailDialog(QDialog):
         fields["Kategori"] = entry.category
         fields["Dosya"] = entry.file_path
         fields["Ad"] = entry.name
-        fields["Durum"] = "+ Aktif" if entry.enabled else "- Pasif"
+        fields["Durum"] = "✓ Aktif" if entry.enabled else "✗ Pasif"
         if entry.user:
             fields["Kullanıcı"] = entry.user
         fields["Scope"] = entry.scope
@@ -113,51 +99,22 @@ class DetailDialog(QDialog):
 
     def _add_section(self, layout: QVBoxLayout, title: str, items: dict):
         group = QGroupBox(title)
-        group.setStyleSheet(f"""
-            QGroupBox {{
-                color: {CATPPUCCIN_MOCHA['text']};
-                border: 1px solid {CATPPUCCIN_MOCHA['surface0']};
-                border-radius: 4px;
-                margin-top: 8px;
-                padding-top: 12px;
-                font-weight: bold;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                subcontrol-position: top left;
-                left: 8px;
-                padding: 0 4px;
-            }}
-        """)
         vbox = QVBoxLayout()
         for key, value in items.items():
-            row = QVBoxLayout()
+            col = QVBoxLayout()
             lbl_key = QLabel(f"{key}:")
-            lbl_key.setStyleSheet(f"color: {CATPPUCCIN_MOCHA['subtext0']}; font-weight: normal;")
             lbl_val = QLabel(str(value))
             lbl_val.setWordWrap(True)
             lbl_val.setTextInteractionFlags(Qt.TextSelectableByMouse)
-            lbl_val.setStyleSheet(f"color: {CATPPUCCIN_MOCHA['text']};")
-            row.addWidget(lbl_key)
-            row.addWidget(lbl_val)
+            col.addWidget(lbl_key)
+            col.addWidget(lbl_val)
             btn = QPushButton("Kopyala")
             btn.setFixedWidth(70)
-            btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {CATPPUCCIN_MOCHA['surface0']};
-                    color: {CATPPUCCIN_MOCHA['text']};
-                    border: 1px solid {CATPPUCCIN_MOCHA['surface1']};
-                    border-radius: 3px;
-                    padding: 2px 8px;
-                    font-size: 11px;
-                }}
-                QPushButton:hover {{ background-color: {CATPPUCCIN_MOCHA['surface1']}; }}
-            """)
             btn.clicked.connect(lambda checked, v=str(value): QApplication.clipboard().setText(v))
-            h = QVBoxLayout()
             top_row = QVBoxLayout()
             top_row.addWidget(lbl_key)
             top_row.addWidget(btn)
+            h = QVBoxLayout()
             h.addLayout(top_row)
             h.addWidget(lbl_val)
             vbox.addLayout(h)

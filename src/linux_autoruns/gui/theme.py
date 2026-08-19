@@ -23,6 +23,11 @@ QMainWindow, QDialog {{
     color: {CATPPUCCIN_MOCHA['text']};
 }}
 
+QWidget {{
+    background-color: {CATPPUCCIN_MOCHA['base']};
+    color: {CATPPUCCIN_MOCHA['text']};
+}}
+
 QTreeWidget, QTableWidget {{
     background-color: {CATPPUCCIN_MOCHA['mantle']};
     color: {CATPPUCCIN_MOCHA['text']};
