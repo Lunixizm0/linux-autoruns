@@ -334,8 +334,7 @@ class MainWindow(QMainWindow):
             if len(text) > len(widest):
                 widest = text
         fm = QFontMetrics(self._tree.font())
-        padding = self._tree.verticalHeader().width() + 40
-        width = fm.horizontalAdvance(widest) + padding
+        width = fm.horizontalAdvance(widest) + 40
         width = max(140, min(width, 350))
         self._tree.setFixedWidth(width)
 
