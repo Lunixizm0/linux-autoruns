@@ -4,7 +4,7 @@ from PySide6.QtCore import (QAbstractTableModel, QModelIndex,
                             QSortFilterProxyModel, Qt)
 from PySide6.QtGui import QColor
 
-from ..gui.theme import CATPPUCCIN_MOCHA
+from .theme import CATPPUCCIN_MOCHA
 from ..models import AutostartEntry
 
 

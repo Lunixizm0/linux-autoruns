@@ -34,15 +34,13 @@ class InitScanner(BaseScanner):
                 content = self._read_file(str(f))
                 description = None
                 if content:
-                    for line in content.splitlines()[:20]:
-                        m = re.search(r"#\s*(?:###?\s*BEGIN\s+INIT\s+INFO)(.+?)(?:###?\s*END\s+INIT\s+INFO)", content, re.DOTALL)
-                        if m:
-                            block = m.group(1)
-                            for bl in block.splitlines():
-                                if "Description:" in bl:
-                                    description = bl.split("Description:", 1)[1].strip()
-                                    break
-                            break
+                    m = re.search(r"#\s*(?:###?\s*BEGIN\s+INIT\s+INFO)(.+?)(?:###?\s*END\s+INIT\s+INFO)", content, re.DOTALL)
+                    if m:
+                        block = m.group(1)
+                        for bl in block.splitlines():
+                            if "Description:" in bl:
+                                description = bl.split("Description:", 1)[1].strip()
+                                break
                 info = self._get_file_info(str(f))
                 entries.append(self._make_entry(
                     file_path=str(f),

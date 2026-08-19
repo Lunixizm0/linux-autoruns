@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import (QApplication, QCheckBox, QDialog, QGroupBox,
+from PySide6.QtWidgets import (QApplication, QDialog, QGroupBox,
                                QLabel, QPlainTextEdit, QPushButton,
                                QScrollArea, QVBoxLayout, QWidget)
 
-from ..gui.theme import DARK_THEME_QSS
+from .theme import DARK_THEME_QSS
 from ..models import AutostartEntry
 
 
@@ -20,7 +22,6 @@ class DetailDialog(QDialog):
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         container = QWidget()
-        container.setStyleSheet("background-color: #1e1e2e;")
         layout = QVBoxLayout(container)
         layout.setSpacing(8)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -64,7 +65,6 @@ class DetailDialog(QDialog):
                 layout.addWidget(group)
         layout.addStretch()
         scroll.setWidget(container)
-        scroll.setStyleSheet("background-color: #1e1e2e;")
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(scroll)
@@ -118,7 +118,6 @@ class DetailDialog(QDialog):
 
     def _read_raw_content(self, path: str) -> str | None:
         try:
-            from pathlib import Path
             return Path(path).read_text(encoding="utf-8", errors="replace")
         except (OSError, PermissionError):
             return None
