@@ -181,6 +181,29 @@ class EntryFilterProxy(QSortFilterProxyModel):
 
         for key, value in tokens:
             val_lower = value.lower()
+
+            if key == "enabled":
+                if val_lower in ("true", "1", "yes", "on"):
+                    if not entry.enabled:
+                        return False
+                elif val_lower in ("false", "0", "no", "off"):
+                    if entry.enabled:
+                        return False
+                else:
+                    return False
+                continue
+
+            if key == "disabled":
+                if val_lower in ("true", "1", "yes", "on"):
+                    if entry.enabled:
+                        return False
+                elif val_lower in ("false", "0", "no", "off"):
+                    if not entry.enabled:
+                        return False
+                else:
+                    return False
+                continue
+
             if key and key in _VALID_KEYS:
                 if key not in field_map:
                     return False
