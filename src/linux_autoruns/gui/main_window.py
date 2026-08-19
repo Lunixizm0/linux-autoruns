@@ -66,6 +66,21 @@ class MainWindow(QMainWindow):
         super().showEvent(event)
         if not self._settings.value("column_widths"):
             self._apply_percentage_widths()
+        self._last_viewport_width = self._table.viewport().width()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        header = self._table.horizontalHeader()
+        new_vw = self._table.viewport().width()
+        old_vw = getattr(self, "_last_viewport_width", 0)
+        if old_vw <= 0 or new_vw <= 0 or new_vw == old_vw:
+            return
+        self._last_viewport_width = new_vw
+        ratio = new_vw / old_vw
+        header.blockSignals(True)
+        for c in range(header.count()):
+            header.resizeSection(c, max(int(header.sectionSize(c) * ratio), 20))
+        header.blockSignals(False)
 
     def _setup_ui(self):
         central = QWidget()
