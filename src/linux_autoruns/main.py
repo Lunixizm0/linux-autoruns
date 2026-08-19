@@ -4,6 +4,8 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
+from pathlib import Path
 
 from PySide6.QtWidgets import (QApplication, QInputDialog, QLineEdit,
                                QMessageBox)
@@ -34,13 +36,34 @@ def _find_executable() -> str:
     return sys.executable
 
 
+def _find_askpass_helper() -> str | None:
+    for name in ["zenity", "kdialog", "ssh-askpass", "ksshaskpass",
+                  "lxqt-sudo", "gnome-ssh-askpass", "x11-askpass"]:
+        path = shutil.which(name)
+        if path:
+            return path
+    return None
+
+
+def _create_askpass_wrapper(helper: str) -> str:
+    display = os.environ.get("DISPLAY", ":0")
+    xauthority = os.environ.get("XAUTHORITY", os.path.expanduser("~/.Xauthority"))
+    helper_name = Path(helper).name
+
+    content = f"""#!/bin/bash
+export DISPLAY="{display}"
+export XAUTHORITY="{xauthority}"
+exec "{helper}" "$@"
+"""
+    fd, wrapper_path = tempfile.mkstemp(prefix=f"askpass_{helper_name}_", suffix=".sh")
+    os.close(fd)
+    Path(wrapper_path).write_text(content)
+    os.chmod(wrapper_path, 0o700)
+    return wrapper_path
+
+
 def _try_relaunch() -> bool:
     exe = _find_executable()
-
-    password = _prompt_password_qt()
-    if not password:
-        return False
-
     sudo_exe = shutil.which("sudo")
     if not sudo_exe:
         return False
@@ -54,6 +77,41 @@ def _try_relaunch() -> bool:
             paths = f"{p}:{paths}"
     env["PATH"] = paths
 
+    helper = _find_askpass_helper()
+    if helper:
+        wrapper = _create_askpass_wrapper(helper)
+        try:
+            env["SUDO_ASKPASS"] = wrapper
+            proc = subprocess.Popen(
+                [sudo_exe, "-A", exe],
+                env=env,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+            )
+            _, stderr = proc.communicate(timeout=30)
+            if proc.returncode == 0:
+                return True
+            if b"command not found" in stderr.lower() or b"not found" in stderr.lower():
+                proc2 = subprocess.Popen(
+                    [sudo_exe, "-A", sys.executable, "-m", "linux_autoruns"],
+                    env=env,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                )
+                proc2.communicate(timeout=30)
+                if proc2.returncode == 0:
+                    return True
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+        finally:
+            try:
+                os.unlink(wrapper)
+            except OSError:
+                pass
+
+    password = _prompt_password_qt()
+    if not password:
+        return False
     try:
         proc = subprocess.Popen(
             [sudo_exe, "-S", exe],
@@ -65,7 +123,7 @@ def _try_relaunch() -> bool:
         _, stderr = proc.communicate(input=(password + "\n").encode(), timeout=30)
         if proc.returncode == 0:
             return True
-        if b"command not found" in stderr.lower():
+        if b"command not found" in stderr.lower() or b"not found" in stderr.lower():
             proc2 = subprocess.Popen(
                 [sudo_exe, "-S", sys.executable, "-m", "linux_autoruns"],
                 stdin=subprocess.PIPE,
