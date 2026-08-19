@@ -1,18 +1,20 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 import os
 import subprocess
-import sys
 from datetime import datetime, timezone
 
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QSettings, QTimer, Qt
 from PySide6.QtGui import QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog,
                                QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-                               QMainWindow, QMenu, QMessageBox, QPushButton,
-                               QSplitter, QStatusBar, QTableView, QTreeWidget,
-                               QTreeWidgetItem, QVBoxLayout, QWidget)
+                               QMainWindow, QMenu, QMessageBox, QProgressBar,
+                               QPushButton, QSplitter, QStatusBar, QTableView,
+                               QTreeWidget, QTreeWidgetItem, QVBoxLayout,
+                               QWidget)
 
 from ..models import AutostartEntry
 from ..scanners import SCANNERS
@@ -25,13 +27,15 @@ from .worker import ScanWorker
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self._settings = QSettings("linux-autoruns", "linux-autoruns")
         self.setWindowTitle("Linux Autoruns")
         self.setMinimumSize(1000, 600)
-        self.resize(1200, 700)
+        self._restore_geometry()
         self._all_entries: list[AutostartEntry] = []
         self._worker: ScanWorker | None = None
         self._edit_mode = False
         self._selected_category: str | None = None
+        self._error_count = 0
         self._model = EntryTableModel(self)
         self._proxy = EntryFilterProxy(self)
         self._proxy.setSourceModel(self._model)
@@ -43,6 +47,17 @@ class MainWindow(QMainWindow):
         self._apply_theme()
         self._start_scan()
 
+    def _restore_geometry(self):
+        geom = self._settings.value("geometry")
+        if geom:
+            self.restoreGeometry(geom)
+        else:
+            self.resize(1200, 700)
+
+    def closeEvent(self, event):
+        self._settings.setValue("geometry", self.saveGeometry())
+        super().closeEvent(event)
+
     def _setup_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
@@ -51,6 +66,11 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(0)
         toolbar = self._create_toolbar()
         main_layout.addLayout(toolbar)
+        self._progress_bar = QProgressBar()
+        self._progress_bar.setMaximumHeight(4)
+        self._progress_bar.setTextVisible(False)
+        self._progress_bar.setValue(0)
+        main_layout.addWidget(self._progress_bar)
         splitter = QSplitter(Qt.Horizontal)
         self._tree = QTreeWidget()
         self._tree.setHeaderLabel("Kategoriler")
@@ -109,10 +129,14 @@ class MainWindow(QMainWindow):
         self._scan_btn = QPushButton("Scan")
         self._scan_btn.clicked.connect(self._start_scan)
         toolbar.addWidget(self._scan_btn)
-        self._export_btn = QPushButton("Export JSON")
-        self._export_btn.clicked.connect(self._export_json)
-        self._export_btn.setEnabled(False)
-        toolbar.addWidget(self._export_btn)
+        self._export_json_btn = QPushButton("Export JSON")
+        self._export_json_btn.clicked.connect(self._export_json)
+        self._export_json_btn.setEnabled(False)
+        toolbar.addWidget(self._export_json_btn)
+        self._export_csv_btn = QPushButton("Export CSV")
+        self._export_csv_btn.clicked.connect(self._export_csv)
+        self._export_csv_btn.setEnabled(False)
+        toolbar.addWidget(self._export_csv_btn)
         return toolbar
 
     def _apply_theme(self):
@@ -125,14 +149,18 @@ class MainWindow(QMainWindow):
         if self._worker and self._worker.isRunning():
             self._worker.cancel()
             self._scan_btn.setText("Scan")
+            self._progress_bar.setValue(0)
             return
         self._all_entries.clear()
         self._selected_category = None
+        self._error_count = 0
         self._model.set_entries([])
         self._tree.clear()
         self._add_tree_root()
         self._scan_btn.setText("Durdur")
-        self._export_btn.setEnabled(False)
+        self._export_json_btn.setEnabled(False)
+        self._export_csv_btn.setEnabled(False)
+        self._progress_bar.setValue(0)
         self._worker = ScanWorker(SCANNERS, self)
         self._worker.progress.connect(self._on_progress)
         self._worker.entry_found.connect(self._on_entry_found)
@@ -146,6 +174,7 @@ class MainWindow(QMainWindow):
         item.setData(0, Qt.UserRole, 0)
 
     def _on_progress(self, category: str, percent: int):
+        self._progress_bar.setValue(percent)
         self._status_bar.showMessage(f"Taranıyor: {category} ({percent}%)")
 
     def _on_entry_found(self, entry: AutostartEntry):
@@ -157,17 +186,23 @@ class MainWindow(QMainWindow):
         self._all_entries = entries
         self._model.set_entries(entries)
         self._scan_btn.setText("Scan")
-        self._export_btn.setEnabled(True)
+        self._export_json_btn.setEnabled(True)
+        self._export_csv_btn.setEnabled(True)
+        self._progress_bar.setValue(100)
         total = len(entries)
         enabled = sum(1 for e in entries if e.enabled)
         cats = len(set(e.category for e in entries))
-        self._status_bar.showMessage(f"Tamamlandı: {total} entry ({enabled} aktif) - {cats} kategori")
+        msg = f"Tamamlandı: {total} entry ({enabled} aktif) - {cats} kategori"
+        if self._error_count:
+            msg += f" ({self._error_count} hata)"
+        self._status_bar.showMessage(msg)
         has_user = any(e.user for e in entries)
         self._table.setColumnHidden(3, not has_user)
         self._update_tree_root_count()
 
     def _on_error(self, msg: str):
-        self._status_bar.showMessage(f"Hata: {msg[:100]}")
+        self._error_count += 1
+        self._status_bar.showMessage(f"Hata ({self._error_count}): {msg[:80]}")
 
     def _update_tree_root_count(self):
         if self._tree.topLevelItemCount() > 0:
@@ -231,6 +266,13 @@ class MainWindow(QMainWindow):
         inspect_action = menu.addAction("Inspect Details...")
         menu.addSeparator()
         open_location = menu.addAction("Open File Location")
+        if self._edit_mode:
+            menu.addSeparator()
+            toggle_action = menu.addAction(
+                "Disable" if entry.enabled else "Enable"
+            )
+        else:
+            toggle_action = None
         action = menu.exec(self._table.mapToGlobal(pos))
         if action == copy_name:
             QApplication.clipboard().setText(entry.name)
@@ -246,6 +288,9 @@ class MainWindow(QMainWindow):
             dirpath = os.path.dirname(entry.file_path)
             if os.path.isdir(dirpath):
                 subprocess.Popen(["xdg-open", dirpath])
+        elif toggle_action and action == toggle_action:
+            entry.enabled = not entry.enabled
+            self._model.set_entries(list(self._model.get_all_entries()))
 
     def _on_inspect(self, index):
         source_index = self._proxy.mapToSource(index)
@@ -282,3 +327,30 @@ class MainWindow(QMainWindow):
             self._status_bar.showMessage(f"Dışa aktarıldı: {path}")
         except OSError as e:
             QMessageBox.critical(self, "Hata", f"JSON kaydedilemedi: {e}")
+
+    def _export_csv(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "CSV olarak kaydet", "autoruns_export.csv", "CSV (*.csv)"
+        )
+        if not path:
+            return
+        try:
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["Enabled", "Name", "Category", "User", "Description",
+                                 "Command", "Path", "Modified", "Tags"])
+                for entry in self._all_entries:
+                    writer.writerow([
+                        "✓" if entry.enabled else "✗",
+                        entry.name,
+                        entry.category,
+                        entry.user or "",
+                        entry.description or "",
+                        entry.command or "",
+                        entry.file_path,
+                        entry.last_modified or "",
+                        ",".join(entry.tags),
+                    ])
+            self._status_bar.showMessage(f"Dışa aktarıldı: {path}")
+        except OSError as e:
+            QMessageBox.critical(self, "Hata", f"CSV kaydedilemedi: {e}")

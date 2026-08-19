@@ -211,4 +211,18 @@ QGroupBox::title {{
     left: 8px;
     padding: 0 4px;
 }}
+
+QProgressBar {{
+    background-color: {CATPPUCCIN_MOCHA['mantle']};
+    border: 1px solid {CATPPUCCIN_MOCHA['surface0']};
+    border-radius: 4px;
+    text-align: center;
+    color: {CATPPUCCIN_MOCHA['text']};
+    height: 16px;
+}}
+
+QProgressBar::chunk {{
+    background-color: {CATPPUCCIN_MOCHA['blue']};
+    border-radius: 3px;
+}}
 """
