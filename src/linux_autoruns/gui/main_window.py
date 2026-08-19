@@ -8,13 +8,12 @@ from datetime import datetime, timezone
 
 from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox,
-                                QFileDialog, QHBoxLayout, QHeaderView,
-                                QLabel, QLineEdit, QMainWindow, QMenu,
-                                QMessageBox, QProgressBar, QPushButton,
-                                QSplitter, QStatusBar, QTableView,
-                                QToolButton, QTreeWidget, QTreeWidgetItem,
-                                QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFileDialog,
+                               QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+                               QMainWindow, QMenu, QMessageBox, QProgressBar,
+                               QPushButton, QSplitter, QStatusBar, QTableView,
+                               QToolButton, QTreeWidget, QTreeWidgetItem,
+                               QVBoxLayout, QWidget)
 
 from ..models import AutostartEntry
 from ..scanners import SCANNERS
@@ -103,8 +102,7 @@ class MainWindow(QMainWindow):
         self._configure_table_columns()
         header.customContextMenuRequested.connect(self._on_header_context_menu)
         splitter.addWidget(self._table)
-        splitter.setStretchFactor(0, 0)
-        splitter.setStretchFactor(1, 1)
+        splitter.setSizes([190, 1000])
         main_layout.addWidget(splitter)
         self._status_bar = QStatusBar()
         self.setStatusBar(self._status_bar)
@@ -330,9 +328,7 @@ class MainWindow(QMainWindow):
             text = f"{cat} ({counts[cat]})"
             item.setText(0, text)
             item.setData(0, Qt.UserRole, counts[cat])
-        self._tree.resizeColumnToContents(0)
-        col_w = self._tree.columnWidth(0)
-        self._tree.setFixedWidth(min(col_w + 16, 240))
+        self._tree.setFixedWidth(190)
 
     def _rebuild_tag_list(self):
         tags: set[str] = set()
