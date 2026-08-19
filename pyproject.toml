@@ -1,9 +1,10 @@
 [project]
 name = "linux-autoruns"
-version = "2.5.0"
-description = "Autoruns program for linux."
+version = "2.6.0"
+description = "Windows Autoruns equivalent for Linux. Scans all autostart entry points."
 readme = "README.md"
 requires-python = ">=3.14"
+license = "MIT"
 dependencies = [
     "pyside6>=6.11.2",
 ]
